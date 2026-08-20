@@ -7,12 +7,16 @@ export function parseSubmission(formData: FormData): {
   transcript: string;
 } {
   const callType = formData.get("callType");
-  const transcript = formData.get("transcript");
+  const submittedTranscript = formData.get("transcript");
 
   if (callType !== "kickoff" && callType !== "coaching") {
     throw new Error("Choose kick-off or coaching.");
   }
-  if (typeof transcript !== "string" || transcript.trim().length === 0) {
+  if (typeof submittedTranscript !== "string") {
+    throw new Error("Paste a transcript to evaluate.");
+  }
+  const transcript = submittedTranscript.replace(/\r\n?/g, "\n");
+  if (transcript.trim().length === 0) {
     throw new Error("Paste a transcript to evaluate.");
   }
   if (transcript.length > 65_000) {

@@ -23,6 +23,18 @@ describe("submission boundary", () => {
     });
   });
 
+  it("measures textarea line endings the same way as the browser character counter", () => {
+    const browserTranscript = `${"x\n".repeat(500)}${"x".repeat(63_795)}`;
+    const serializedTranscript = browserTranscript.replaceAll("\n", "\r\n");
+
+    expect(browserTranscript).toHaveLength(64_795);
+    expect(serializedTranscript.length).toBeGreaterThan(65_000);
+    expect(parseSubmission(form("coaching", serializedTranscript))).toEqual({
+      callType: "coaching",
+      transcript: browserTranscript,
+    });
+  });
+
   it.each([
     ["sales", "[Coach]: Hello", "Choose kick-off or coaching."],
     ["kickoff", "   ", "Paste a transcript to evaluate."],
