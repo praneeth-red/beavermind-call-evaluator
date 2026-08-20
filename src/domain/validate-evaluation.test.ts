@@ -9,17 +9,37 @@ import { parseTranscript } from "./transcript";
 
 const KICKOFF_MAXIMA = [10, 10, 5, 15, 10, 10, 5, 10, 10, 5, 5, 5];
 const COACHING_MAXIMA = [10, 10, 15, 15, 10, 15, 5, 5, 5, 5, 5, 5];
-const BASE_TRANSCRIPT = "[Coach]: Coach says alpha\n[Client]: Client says beta gamma";
+const BASE_TRANSCRIPT =
+  "[Coach]: Coach says alpha\n[Client]: Client says beta gamma\n[Coach]: Coach confirms delta\n[Coach]: Coach closes epsilon";
 
 function candidateFor(callType: CallType, quote = "Coach says alpha"): EvaluationResult {
   const maxima = callType === "kickoff" ? KICKOFF_MAXIMA : COACHING_MAXIMA;
+  const coaching = callType === "coaching";
 
   return {
     coachSpeaker: "Coach",
     scoringSignals: {
-      diagnosticsApplicable: true,
-      movementCoachingOccurred: true,
-      nextCallBookedLive: true,
+      diagnosticsApplicable: {
+        value: coaching,
+        reasoning: coaching ? "Diagnostics were reviewed." : "Not used for kickoff calls.",
+        evidence: coaching ? [{ turn: 1, quote }] : [],
+      },
+      movementCoachingOccurred: {
+        value: coaching,
+        reasoning: coaching ? "Movement coaching occurred." : "Not used for kickoff calls.",
+        evidence: coaching ? [{ turn: 1, quote }] : [],
+      },
+      nextCallBookedLive: {
+        value: coaching,
+        reasoning: coaching ? "The next call was booked live." : "Not used for kickoff calls.",
+        evidence: coaching
+          ? [
+              { criterion: "link", turn: 1, quote },
+              { criterion: "action", turn: 2, quote: "Client says beta gamma" },
+              { criterion: "confirmation", turn: 3, quote: "Coach confirms delta" },
+            ]
+          : [],
+      },
     },
     oneThing: {
       improvement: "Ask one more question",
@@ -41,7 +61,7 @@ function candidateFor(callType: CallType, quote = "Coach says alpha"): Evaluatio
     dimensions: maxima.map((maximum, index) => ({
       dimension: index + 1,
       name: `Dimension ${index + 1}`,
-      score: 0,
+      score: coaching && index === 9 ? 5 : 0,
       maximum,
       active: true,
       band: "Fail",
@@ -104,9 +124,25 @@ describe("validateEvaluation", () => {
       ...candidateFor("coaching"),
       coachSpeaker: "Coach",
       scoringSignals: {
-        diagnosticsApplicable: true,
-        movementCoachingOccurred: true,
-        nextCallBookedLive: true,
+        diagnosticsApplicable: {
+          value: true,
+          reasoning: "Diagnostics were reviewed.",
+          evidence: [{ turn: 1, quote: "Coach says alpha" }],
+        },
+        movementCoachingOccurred: {
+          value: true,
+          reasoning: "Movement coaching occurred.",
+          evidence: [{ turn: 1, quote: "Coach says alpha" }],
+        },
+        nextCallBookedLive: {
+          value: true,
+          reasoning: "The link, booking action, and confirmation were observed.",
+          evidence: [
+            { criterion: "link", turn: 1, quote: "Coach says alpha" },
+            { criterion: "action", turn: 2, quote: "Client says beta gamma" },
+            { criterion: "confirmation", turn: 3, quote: "Coach confirms delta" },
+          ],
+        },
       },
     };
 
@@ -196,7 +232,8 @@ describe("validateEvaluation", () => {
 
   it("validates evidence attached to inactive dimensions too", () => {
     const candidate = candidateFor("coaching");
-    candidate.scoringSignals.diagnosticsApplicable = false;
+    candidate.scoringSignals.diagnosticsApplicable.value = false;
+    candidate.scoringSignals.diagnosticsApplicable.evidence = [];
     candidate.dimensions[1] = {
       ...candidate.dimensions[1],
       active: false,
@@ -224,8 +261,10 @@ describe("validateEvaluation", () => {
 
   it("removes inactive dimensions from both raw points and active maximum without redistribution", () => {
     const candidate = candidateFor("coaching");
-    candidate.scoringSignals.diagnosticsApplicable = false;
-    candidate.scoringSignals.movementCoachingOccurred = false;
+    candidate.scoringSignals.diagnosticsApplicable.value = false;
+    candidate.scoringSignals.diagnosticsApplicable.evidence = [];
+    candidate.scoringSignals.movementCoachingOccurred.value = false;
+    candidate.scoringSignals.movementCoachingOccurred.evidence = [];
     candidate.dimensions.forEach((dimension, index) => {
       dimension.score = COACHING_MAXIMA[index];
     });
@@ -304,6 +343,10 @@ describe("validateEvaluation", () => {
       dimension.evidence = [{ turn: 1, quote: "one two three" }];
     });
     candidate.redFlags[0].evidence = [{ turn: 1, quote: "one two three" }];
+    if (callType === "coaching") {
+      candidate.scoringSignals.nextCallBookedLive.value = false;
+      candidate.scoringSignals.nextCallBookedLive.evidence = [];
+    }
 
     const result = validateEvaluation(callType, transcript, candidate);
 
@@ -314,27 +357,32 @@ describe("validateEvaluation", () => {
     expect(result.assumptions).toContainEqual(expect.stringMatching(/word share.*estimate/i));
   });
 
-  it("derives coaching-01's non-recoverable live-booking cap from the scoring signal", () => {
+  it("rejects coaching-01's positive booking judgment without complete booking evidence", () => {
     const transcript = fixture("coaching-01.txt");
     const candidate = candidateFor("coaching", "Hey Malik, can you hear me okay?");
     candidate.coachSpeaker = "Priya Raman";
-    candidate.scoringSignals.nextCallBookedLive = false;
+    candidate.scoringSignals.nextCallBookedLive.evidence = [
+      { criterion: "link", turn: 185, quote: "Let's just lock it in right now" },
+      { criterion: "action", turn: 188, quote: "Let's lock that in" },
+    ];
     candidate.dimensions[9].score = 5;
 
-    const result = validateEvaluation("coaching", transcript, candidate);
-
-    expect(result.dimensions[9].score).toBe(0);
-    expect(result.appliedDimensionCaps).toContainEqual(
-      expect.objectContaining({ dimension: 10, maximum: 0 }),
-    );
+    expect(() => validateEvaluation("coaching", transcript, candidate)).toThrow(/live booking.*evidence/i);
   });
 
-  it("rejects coaching-02 dimensions that contradict inactive scoring signals", () => {
+  it("uses coaching-02 signals for inactivity and accepts its complete live-booking evidence", () => {
     const transcript = fixture("coaching-02.txt");
     const candidate = candidateFor("coaching", "Hannah, hey, there she is. Can you hear me alright?");
     candidate.coachSpeaker = "Marcus Reid";
-    candidate.scoringSignals.diagnosticsApplicable = false;
-    candidate.scoringSignals.movementCoachingOccurred = false;
+    candidate.scoringSignals.diagnosticsApplicable.value = false;
+    candidate.scoringSignals.diagnosticsApplicable.evidence = [];
+    candidate.scoringSignals.movementCoachingOccurred.value = false;
+    candidate.scoringSignals.movementCoachingOccurred.evidence = [];
+    candidate.scoringSignals.nextCallBookedLive.evidence = [
+      { criterion: "link", turn: 309, quote: "I'm going to drop my booking link in the chat right now" },
+      { criterion: "action", turn: 314, quote: "booking it now... there, done, it's booked" },
+      { criterion: "confirmation", turn: 315, quote: "I see it come through" },
+    ];
 
     expect(() => validateEvaluation("coaching", transcript, candidate)).toThrow(/scoring signal.*dimension 2/i);
 
@@ -346,6 +394,18 @@ describe("validateEvaluation", () => {
       evidence: [],
     };
     expect(() => validateEvaluation("coaching", transcript, candidate)).toThrow(/scoring signal.*dimension 4/i);
+
+    candidate.dimensions[3] = {
+      ...candidate.dimensions[3],
+      active: false,
+      score: null,
+      band: "N/A",
+      evidence: [],
+    };
+    const result = validateEvaluation("coaching", transcript, candidate);
+    expect(result.dimensions[1]).toMatchObject({ active: false, score: null, maximum: 0 });
+    expect(result.dimensions[3]).toMatchObject({ active: false, score: null, maximum: 0 });
+    expect(result.dimensions[9].score).toBe(5);
   });
 
   it("rejects inactive dimensions and caps that contradict positive scoring signals", () => {
@@ -367,6 +427,72 @@ describe("validateEvaluation", () => {
     ];
     expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, contradictoryBookingCap)).toThrow(
       /scoring signal.*dimension 10/i,
+    );
+  });
+
+  it("requires exact evidence for positive diagnostics and movement signals", () => {
+    const diagnostics = candidateFor("coaching");
+    diagnostics.scoringSignals.diagnosticsApplicable.evidence = [];
+    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, diagnostics)).toThrow(
+      /diagnostics.*evidence/i,
+    );
+
+    const movement = candidateFor("coaching");
+    movement.scoringSignals.movementCoachingOccurred.evidence = [
+      { turn: 1, quote: "Invented movement evidence" },
+    ];
+    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, movement)).toThrow(
+      /evidence.*turn 1/i,
+    );
+  });
+
+  it("requires three distinct live-booking turns across coach and client", () => {
+    const repeatedTurn = candidateFor("coaching");
+    repeatedTurn.scoringSignals.nextCallBookedLive.evidence = [
+      { criterion: "link", turn: 1, quote: "Coach says alpha" },
+      { criterion: "action", turn: 1, quote: "Coach says alpha" },
+      { criterion: "confirmation", turn: 3, quote: "Coach confirms delta" },
+    ];
+    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, repeatedTurn)).toThrow(/three distinct/i);
+
+    const coachOnly = candidateFor("coaching");
+    coachOnly.scoringSignals.nextCallBookedLive.evidence = [
+      { criterion: "link", turn: 1, quote: "Coach says alpha" },
+      { criterion: "action", turn: 3, quote: "Coach confirms delta" },
+      { criterion: "confirmation", turn: 4, quote: "Coach closes epsilon" },
+    ];
+    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, coachOnly)).toThrow(/coach and client/i);
+
+    const paddedDuplicate = candidateFor("coaching");
+    paddedDuplicate.scoringSignals.nextCallBookedLive.evidence = [
+      { criterion: "link", turn: 1, quote: "Coach says alpha" },
+      { criterion: "action", turn: 1, quote: "Coach says alpha" },
+      { criterion: "confirmation", turn: 3, quote: "Coach confirms delta" },
+      { criterion: "link", turn: 2, quote: "Client says beta gamma" },
+    ];
+    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, paddedDuplicate)).toThrow(/exactly one/i);
+  });
+
+  it("rejects a positive live-booking signal when coaching D10 is zero", () => {
+    const candidate = candidateFor("coaching");
+    candidate.dimensions[9].score = 0;
+
+    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, candidate)).toThrow(
+      /live booking.*dimension 10/i,
+    );
+  });
+
+  it("derives coaching D10 score and cap from a false live-booking signal", () => {
+    const candidate = candidateFor("coaching");
+    candidate.scoringSignals.nextCallBookedLive.value = false;
+    candidate.scoringSignals.nextCallBookedLive.evidence = [];
+    candidate.dimensions[9].score = 5;
+
+    const result = validateEvaluation("coaching", BASE_TRANSCRIPT, candidate);
+
+    expect(result.dimensions[9].score).toBe(0);
+    expect(result.appliedDimensionCaps).toContainEqual(
+      expect.objectContaining({ dimension: 10, maximum: 0 }),
     );
   });
 });

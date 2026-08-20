@@ -27,9 +27,21 @@ export interface DimensionResult {
 export interface EvaluationResult {
   coachSpeaker: string;
   scoringSignals: {
-    diagnosticsApplicable: boolean;
-    movementCoachingOccurred: boolean;
-    nextCallBookedLive: boolean;
+    diagnosticsApplicable: {
+      value: boolean;
+      reasoning: string;
+      evidence: Evidence[];
+    };
+    movementCoachingOccurred: {
+      value: boolean;
+      reasoning: string;
+      evidence: Evidence[];
+    };
+    nextCallBookedLive: {
+      value: boolean;
+      reasoning: string;
+      evidence: Array<Evidence & { criterion: "link" | "action" | "confirmation" }>;
+    };
   };
   oneThing: {
     improvement: string;

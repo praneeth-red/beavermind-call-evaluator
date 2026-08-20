@@ -37,14 +37,34 @@ const totalCapSchema = z
   })
   .strict();
 
+const scoringSignalSchema = z
+  .object({
+    value: z.boolean(),
+    reasoning: z.string().min(1),
+    evidence: z.array(evidenceSchema),
+  })
+  .strict();
+
+const bookingEvidenceSchema = evidenceSchema.extend({
+  criterion: z.enum(["link", "action", "confirmation"]),
+});
+
+const liveBookingSignalSchema = z
+  .object({
+    value: z.boolean(),
+    reasoning: z.string().min(1),
+    evidence: z.array(bookingEvidenceSchema),
+  })
+  .strict();
+
 export const evaluationCandidateSchema = z
   .object({
     coachSpeaker: z.string().min(1),
     scoringSignals: z
       .object({
-        diagnosticsApplicable: z.boolean(),
-        movementCoachingOccurred: z.boolean(),
-        nextCallBookedLive: z.boolean(),
+        diagnosticsApplicable: scoringSignalSchema,
+        movementCoachingOccurred: scoringSignalSchema,
+        nextCallBookedLive: liveBookingSignalSchema,
       })
       .strict(),
     oneThing: z

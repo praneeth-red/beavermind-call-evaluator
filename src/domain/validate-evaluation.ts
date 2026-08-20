@@ -28,6 +28,10 @@ function assertEvidence(turns: TranscriptTurn[], turn: number, quote: string) {
   }
 }
 
+function assertSignalEvidence(turns: TranscriptTurn[], evidence: Array<{ turn: number; quote: string }>) {
+  for (const item of evidence) assertEvidence(turns, item.turn, item.quote);
+}
+
 function wordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
@@ -48,20 +52,47 @@ export function validateEvaluation(callType: CallType, transcript: string, input
   }
 
   if (callType === "coaching") {
+    const diagnostics = candidate.scoringSignals.diagnosticsApplicable;
+    const movement = candidate.scoringSignals.movementCoachingOccurred;
+    const liveBooking = candidate.scoringSignals.nextCallBookedLive;
     const activeSignals = [
-      { dimension: 2, active: candidate.scoringSignals.diagnosticsApplicable },
-      { dimension: 4, active: candidate.scoringSignals.movementCoachingOccurred },
+      { dimension: 2, active: diagnostics.value },
+      { dimension: 4, active: movement.value },
     ];
     for (const signal of activeSignals) {
       if (dimensions[signal.dimension - 1].active !== signal.active) {
         throw new Error(`Scoring signal contradicts dimension ${signal.dimension} active state.`);
       }
     }
-    if (
-      candidate.scoringSignals.nextCallBookedLive &&
-      candidate.appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)
-    ) {
-      throw new Error("Scoring signal contradicts dimension 10 cap.");
+
+    if (diagnostics.value && diagnostics.evidence.length === 0) {
+      throw new Error("Diagnostics scoring signal requires evidence.");
+    }
+    if (movement.value && movement.evidence.length === 0) {
+      throw new Error("Movement scoring signal requires evidence.");
+    }
+    assertSignalEvidence(turns, diagnostics.evidence);
+    assertSignalEvidence(turns, movement.evidence);
+    assertSignalEvidence(turns, liveBooking.evidence);
+
+    if (liveBooking.value) {
+      const criteria = new Set(liveBooking.evidence.map((evidence) => evidence.criterion));
+      if (liveBooking.evidence.length !== 3 || criteria.size !== 3) {
+        throw new Error("Live booking evidence must include exactly one link, action, and confirmation turn.");
+      }
+      if (new Set(liveBooking.evidence.map((evidence) => evidence.turn)).size < 3) {
+        throw new Error("Live booking evidence must use three distinct turns.");
+      }
+      const speakers = new Set(liveBooking.evidence.map((evidence) => turns[evidence.turn - 1].speaker));
+      if (!speakers.has(candidate.coachSpeaker) || ![...speakers].some((speaker) => speaker !== candidate.coachSpeaker)) {
+        throw new Error("Live booking evidence must include coach and client turns.");
+      }
+      if (dimensions[9].score !== 5) {
+        throw new Error("Live booking scoring signal requires dimension 10 score 5.");
+      }
+      if (candidate.appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)) {
+        throw new Error("Scoring signal contradicts dimension 10 cap.");
+      }
     }
   }
 
@@ -72,7 +103,7 @@ export function validateEvaluation(callType: CallType, transcript: string, input
   const appliedDimensionCaps = [...candidate.appliedDimensionCaps];
   if (
     callType === "coaching" &&
-    !candidate.scoringSignals.nextCallBookedLive &&
+    !candidate.scoringSignals.nextCallBookedLive.value &&
     !appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)
   ) {
     appliedDimensionCaps.push({
