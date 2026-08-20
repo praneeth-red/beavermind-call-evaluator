@@ -2,14 +2,7 @@ import { TranscriptForm } from "../components/transcript-form";
 
 export const maxDuration = 300;
 
-type PageProps = {
-  searchParams: Promise<{ error?: string | string[] }>;
-};
-
-export default async function HomePage({ searchParams }: PageProps) {
-  const { error } = await searchParams;
-  const safeError = typeof error === "string" ? error.slice(0, 300) : undefined;
-
+export default function HomePage() {
   return (
     <main className="submission-shell">
       <section className="submission-main">
@@ -18,7 +11,7 @@ export default async function HomePage({ searchParams }: PageProps) {
         <p className="lede">
           Paste a synthetic kick-off or coaching transcript. The report checks each rubric dimension against exact speaking turns.
         </p>
-        <TranscriptForm error={safeError} />
+        <TranscriptForm />
       </section>
 
       <aside className="report-specimen" aria-labelledby="specimen-heading">

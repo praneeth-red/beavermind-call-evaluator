@@ -95,29 +95,29 @@ describe("run lifecycle", () => {
     );
   });
 
-  it("counts only the client hash submissions inside a rolling window", async () => {
+  it("atomically limits concurrent submissions per hash using an exclusive cutoff", async () => {
     const clock = controllableClock();
     const runs = createInMemoryRunRepository({ now: clock.now });
 
-    await Promise.all(
-      Array.from({ length: 10 }, () => runs.createRun(submission)),
+    await runs.createRun(submission);
+    clock.advance(60 * 60_000);
+    const cutoff = new Date("2026-08-21T10:00:00.000Z");
+    const attempts = await Promise.allSettled(
+      Array.from({ length: 11 }, () =>
+        runs.createLimitedRun(submission, cutoff, 10),
+      ),
     );
-    await runs.createRun({ ...submission, clientHash: "b".repeat(64) });
 
+    expect(attempts.filter(({ status }) => status === "fulfilled")).toHaveLength(10);
+    expect(attempts.filter(({ status }) => status === "rejected")).toHaveLength(1);
     await expect(
-      runs.countRecentRuns(
-        submission.clientHash,
-        new Date("2026-08-21T09:00:00.001Z"),
+      runs.createLimitedRun(
+        { ...submission, clientHash: "b".repeat(64) },
+        cutoff,
+        10,
       ),
-    ).resolves.toBe(10);
-
-    clock.advance(60 * 60_000 + 1);
-    await expect(
-      runs.countRecentRuns(
-        submission.clientHash,
-        new Date("2026-08-21T10:00:00.001Z"),
-      ),
-    ).resolves.toBe(0);
+    ).resolves.toMatchObject({ status: "queued" });
+    expect(runs.size).toBe(12);
   });
 
   it.each([

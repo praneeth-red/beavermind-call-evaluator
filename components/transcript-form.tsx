@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
 
 import { submitTranscript } from "../app/actions";
 
 const MAX_TRANSCRIPT_LENGTH = 65_000;
 
-export function TranscriptForm({ error }: { error?: string }) {
-  const [transcript, setTranscript] = useState("");
+function SubmitButton() {
+  const { pending } = useFormStatus();
 
   return (
-    <form action={submitTranscript} className="transcript-form">
+    <button type="submit" disabled={pending}>
+      {pending ? "Starting…" : "Evaluate call"}
+    </button>
+  );
+}
+
+export function TranscriptForm() {
+  const [transcript, setTranscript] = useState("");
+  const [state, formAction] = useActionState(submitTranscript, { error: null });
+
+  return (
+    <form action={formAction} className="transcript-form">
       <fieldset>
         <legend>Call type</legend>
         <label>
@@ -47,9 +59,9 @@ export function TranscriptForm({ error }: { error?: string }) {
         <span className="character-count" aria-live="polite">
           {transcript.length.toLocaleString("en-US")} / {MAX_TRANSCRIPT_LENGTH.toLocaleString("en-US")}
         </span>
-        <button type="submit">Evaluate call</button>
+        <SubmitButton />
       </div>
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {state.error ? <p className="form-error" role="alert">{state.error}</p> : null}
     </form>
   );
 }

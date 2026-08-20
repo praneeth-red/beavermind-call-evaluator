@@ -4,6 +4,7 @@
   --ink: #142033;
   --cobalt: #3458e6;
   --amber: #c97918;
+  --amber-text: #80450a;
   --retention-red: #b93843;
   --graphite: #5b6574;
   --line: #d8dee8;
@@ -286,7 +287,7 @@ button,
 }
 
 .status-note {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 
 .status-pulse {
@@ -504,7 +505,7 @@ button,
   cursor: pointer;
   display: grid;
   gap: 18px;
-  grid-template-columns: 48px 1fr auto;
+  grid-template-columns: 48px 1fr auto auto;
   list-style: none;
   min-height: 82px;
   padding: 16px 20px;
@@ -664,12 +665,8 @@ button,
 
   .dimension-list summary {
     gap: 10px;
-    grid-template-columns: 34px 1fr auto;
+    grid-template-columns: 34px 1fr auto auto;
     padding-inline: 10px;
-  }
-
-  .dimension-list summary::after {
-    display: none;
   }
 
   .dimension-body,

@@ -41,6 +41,51 @@ create table public.runs (
 create index runs_client_hash_created_at_idx
   on public.runs (client_hash, created_at desc);
 
+create function public.create_limited_run(
+  p_call_type text,
+  p_transcript text,
+  p_client_hash text,
+  p_cutoff timestamptz,
+  p_limit integer
+)
+returns public.runs
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  created_run public.runs;
+begin
+  if p_limit is null or p_limit < 1 then
+    raise exception 'invalid submission limit';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_client_hash, 0));
+
+  if (
+    select count(*)
+    from public.runs
+    where client_hash = p_client_hash
+      and created_at > p_cutoff
+  ) >= p_limit then
+    raise exception using
+      errcode = 'P0001',
+      message = 'SUBMISSION_LIMIT_REACHED';
+  end if;
+
+  insert into public.runs (call_type, transcript, client_hash)
+  values (p_call_type, p_transcript, p_client_hash)
+  returning * into created_run;
+
+  return created_run;
+end;
+$$;
+
+revoke all on function public.create_limited_run(text, text, text, timestamptz, integer)
+  from public, anon, authenticated;
+grant execute on function public.create_limited_run(text, text, text, timestamptz, integer)
+  to service_role;
+
 create function public.maintain_run_status_timestamps()
 returns trigger
 language plpgsql

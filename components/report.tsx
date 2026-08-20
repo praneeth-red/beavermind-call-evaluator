@@ -36,7 +36,7 @@ export function Report({
             </span>
           </div>
         </div>
-        <a className="secondary-action" href={`/runs/${runId}/pdf`}>
+        <a className="secondary-action" href={`/api/runs/${runId}/pdf`}>
           Download PDF
         </a>
       </header>

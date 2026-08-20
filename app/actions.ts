@@ -6,27 +6,32 @@ import { after } from "next/server";
 
 import { evaluateRun } from "../src/server/evaluate-run";
 import { getClientHashSalt } from "../src/server/env";
-import { countRecentRuns, createRun } from "../src/server/runs";
+import {
+  createLimitedRun,
+  isSubmissionLimitError,
+} from "../src/server/runs";
 import { hashClientAddress, parseSubmission } from "../src/server/submission";
 
 const HOUR_MS = 60 * 60_000;
 const SUBMISSION_LIMIT = 10;
 
-function errorLocation(message: string) {
-  return `/?error=${encodeURIComponent(message)}`;
-}
-
-export async function submitTranscript(formData: FormData) {
+export async function submitTranscript(
+  _previousState: { error: string | null },
+  formData: FormData,
+): Promise<{ error: string | null }> {
   let submission;
   try {
     submission = parseSubmission(formData);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Check the transcript and try again.";
-    redirect(errorLocation(message));
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Check the transcript and try again.",
+    };
   }
 
   let clientHash: string;
-  let recentRuns: number;
   try {
     const requestHeaders = await headers();
     const address =
@@ -35,24 +40,25 @@ export async function submitTranscript(formData: FormData) {
       requestHeaders.get("x-real-ip") ||
       "unavailable";
     clientHash = hashClientAddress(address, getClientHashSalt());
-    recentRuns = await countRecentRuns(clientHash, new Date(Date.now() - HOUR_MS));
   } catch {
-    redirect(errorLocation("The evaluator could not start. Try again shortly."));
-  }
-
-  if (recentRuns >= SUBMISSION_LIMIT) {
-    redirect(
-      errorLocation(
-        "You have reached 10 evaluations in the last hour. Try again after the oldest one is an hour old.",
-      ),
-    );
+    return { error: "The evaluator could not start. Try again shortly." };
   }
 
   let run;
   try {
-    run = await createRun({ ...submission, clientHash });
-  } catch {
-    redirect(errorLocation("The evaluator could not start. Try again shortly."));
+    run = await createLimitedRun(
+      { ...submission, clientHash },
+      new Date(Date.now() - HOUR_MS),
+      SUBMISSION_LIMIT,
+    );
+  } catch (error) {
+    if (isSubmissionLimitError(error)) {
+      return {
+        error:
+          "You have reached 10 evaluations in the last hour. Try again when the oldest submission reaches one hour.",
+      };
+    }
+    return { error: "The evaluator could not start. Try again shortly." };
   }
 
   after(async () => {

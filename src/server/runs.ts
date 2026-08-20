@@ -10,6 +10,7 @@ import type { Json, RunRow } from "./supabase";
 
 export const STALE_RUN_ERROR =
   "The evaluation timed out. Please submit the transcript again.";
+const SUBMISSION_LIMIT_ERROR = "SUBMISSION_LIMIT_REACHED";
 
 export type PublicRun = Omit<RunRecord, "transcript" | "clientHash">;
 
@@ -43,48 +44,11 @@ class RunRepository {
     return this.memory?.size ?? 0;
   }
 
-  async countRecentRuns(clientHash: string, since: Date): Promise<number> {
-    if (this.memory) {
-      return [...this.memory.values()].filter(
-        (run) =>
-          run.clientHash === clientHash &&
-          Date.parse(run.createdAt) >= since.getTime(),
-      ).length;
-    }
-
-    const supabase = await getSupabase();
-    const { count, error } = await supabase
-      .from("runs")
-      .select("id", { count: "exact", head: true })
-      .eq("client_hash", clientHash)
-      .gte("created_at", since.toISOString());
-    if (error) throw error;
-    return count ?? 0;
-  }
-
   async createRun(input: CreateRunInput): Promise<RunRecord> {
-    if (
-      !["kickoff", "coaching"].includes(input.callType) ||
-      input.transcript.trim().length === 0 ||
-      input.transcript.length > 65_000 ||
-      !/^[a-f0-9]{64}$/.test(input.clientHash)
-    ) {
-      throw new Error("Invalid run submission");
-    }
+    validateCreateInput(input);
 
     if (this.memory) {
-      const run: RunRecord = {
-        id: randomUUID(),
-        ...input,
-        status: "queued",
-        result: null,
-        publicError: null,
-        createdAt: this.now().toISOString(),
-        startedAt: null,
-        finishedAt: null,
-      };
-      this.memory.set(run.id, run);
-      return structuredClone(run);
+      return this.createMemoryRun(input);
     }
 
     const supabase = await getSupabase();
@@ -96,6 +60,40 @@ class RunRepository {
         client_hash: input.clientHash,
       })
       .select("*")
+      .single();
+    if (error) throw error;
+    return fromRow(data);
+  }
+
+  async createLimitedRun(
+    input: CreateRunInput,
+    cutoff: Date,
+    limit: number,
+  ): Promise<RunRecord> {
+    validateCreateInput(input);
+    if (!Number.isInteger(limit) || limit < 1 || Number.isNaN(cutoff.getTime())) {
+      throw new Error("Invalid submission limit");
+    }
+
+    if (this.memory) {
+      const recentRuns = [...this.memory.values()].filter(
+        (run) =>
+          run.clientHash === input.clientHash &&
+          Date.parse(run.createdAt) > cutoff.getTime(),
+      ).length;
+      if (recentRuns >= limit) throw new Error(SUBMISSION_LIMIT_ERROR);
+      return this.createMemoryRun(input);
+    }
+
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .rpc("create_limited_run", {
+        p_call_type: input.callType,
+        p_transcript: input.transcript,
+        p_client_hash: input.clientHash,
+        p_cutoff: cutoff.toISOString(),
+        p_limit: limit,
+      })
       .single();
     if (error) throw error;
     return fromRow(data);
@@ -264,10 +262,46 @@ class RunRepository {
     const anchor = run.status === "processing" ? run.startedAt : run.createdAt;
     return Boolean(anchor && Date.parse(anchor) < Date.parse(cutoff));
   }
+
+  private createMemoryRun(input: CreateRunInput): RunRecord {
+    if (!this.memory) throw new Error("Memory repository is unavailable");
+    const run: RunRecord = {
+      id: randomUUID(),
+      ...input,
+      status: "queued",
+      result: null,
+      publicError: null,
+      createdAt: this.now().toISOString(),
+      startedAt: null,
+      finishedAt: null,
+    };
+    this.memory.set(run.id, run);
+    return structuredClone(run);
+  }
 }
 
 function invalidTransition(): never {
   throw new Error("Invalid run transition");
+}
+
+function validateCreateInput(input: CreateRunInput) {
+  if (
+    !["kickoff", "coaching"].includes(input.callType) ||
+    input.transcript.trim().length === 0 ||
+    input.transcript.length > 65_000 ||
+    !/^[a-f0-9]{64}$/.test(input.clientHash)
+  ) {
+    throw new Error("Invalid run submission");
+  }
+}
+
+export function isSubmissionLimitError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "message" in error &&
+      error.message === SUBMISSION_LIMIT_ERROR,
+  );
 }
 
 function parseEvaluationResult(input: unknown): EvaluationResult {
@@ -298,8 +332,11 @@ const productionRepository = new RunRepository();
 
 export const createRun = (input: CreateRunInput) =>
   productionRepository.createRun(input);
-export const countRecentRuns = (clientHash: string, since: Date) =>
-  productionRepository.countRecentRuns(clientHash, since);
+export const createLimitedRun = (
+  input: CreateRunInput,
+  cutoff: Date,
+  limit: number,
+) => productionRepository.createLimitedRun(input, cutoff, limit);
 export const claimRun = (id: string) => productionRepository.claimRun(id);
 export const completeRun = (id: string, result: EvaluationResult) =>
   productionRepository.completeRun(id, result);

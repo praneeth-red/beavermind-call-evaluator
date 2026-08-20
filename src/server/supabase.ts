@@ -47,7 +47,18 @@ type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_limited_run: {
+        Args: {
+          p_call_type: RunRow["call_type"];
+          p_transcript: string;
+          p_client_hash: string;
+          p_cutoff: string;
+          p_limit: number;
+        };
+        Returns: RunRow[];
+      };
+    };
   };
 };
 

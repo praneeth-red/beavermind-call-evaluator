@@ -94,7 +94,7 @@ describe("Report", () => {
     expect(html).toContain("Quick fix 1.");
     expect(html).toContain("Next call was not booked live.");
     expect(html).toContain("Coach word share is used as a talk-time estimate.");
-    expect(html).toContain('href="/runs/9f6fd561-7d5d-45bf-a1c9-88ecb891db5e/pdf"');
+    expect(html).toContain('href="/api/runs/9f6fd561-7d5d-45bf-a1c9-88ecb891db5e/pdf"');
     expect(html).toContain("&lt;img src=x onerror=alert(&#x27;private&#x27;)&gt;");
     expect(html).not.toContain("<img src=x");
   });
