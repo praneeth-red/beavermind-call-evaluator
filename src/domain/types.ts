@@ -25,6 +25,12 @@ export interface DimensionResult {
 }
 
 export interface EvaluationResult {
+  coachSpeaker: string;
+  scoringSignals: {
+    diagnosticsApplicable: boolean;
+    movementCoachingOccurred: boolean;
+    nextCallBookedLive: boolean;
+  };
   oneThing: {
     improvement: string;
     explanation: string;

@@ -39,6 +39,14 @@ const totalCapSchema = z
 
 export const evaluationCandidateSchema = z
   .object({
+    coachSpeaker: z.string().min(1),
+    scoringSignals: z
+      .object({
+        diagnosticsApplicable: z.boolean(),
+        movementCoachingOccurred: z.boolean(),
+        nextCallBookedLive: z.boolean(),
+      })
+      .strict(),
     oneThing: z
       .object({
         improvement: z.string().min(1),

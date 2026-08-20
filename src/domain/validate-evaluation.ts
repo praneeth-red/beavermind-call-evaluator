@@ -4,7 +4,7 @@ import { parseTranscript } from "./transcript";
 import type { CallType, EvaluationResult, TranscriptTurn } from "./types";
 
 const WORD_SHARE_ASSUMPTION =
-  "Speaker share uses word share as a talk-time estimate because transcripts have no timestamps.";
+  "The model-identified coach speaker is measured by word share as a talk-time estimate because transcripts have no timestamps.";
 
 export function normalizeScore(raw: number, activeMaximum: number): number {
   if (!Number.isFinite(raw) || !Number.isFinite(activeMaximum) || raw < 0 || activeMaximum <= 0 || raw > activeMaximum) {
@@ -37,6 +37,9 @@ export function validateEvaluation(callType: CallType, transcript: string, input
   const config = rubricConfigs[callType];
   const turns = parseTranscript(transcript);
   if (turns.length === 0) throw new Error("Transcript must contain at least one speaking turn.");
+  if (!turns.some((turn) => turn.speaker === candidate.coachSpeaker)) {
+    throw new Error("Coach speaker must match a parsed transcript speaker.");
+  }
 
   if (candidate.dimensions.length !== 12) throw new Error("Evaluation must contain exactly 12 dimensions.");
   const dimensions = [...candidate.dimensions].sort((left, right) => left.dimension - right.dimension);
@@ -44,12 +47,43 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     throw new Error("Evaluation must contain dimensions 1 through 12 exactly once.");
   }
 
+  if (callType === "coaching") {
+    const activeSignals = [
+      { dimension: 2, active: candidate.scoringSignals.diagnosticsApplicable },
+      { dimension: 4, active: candidate.scoringSignals.movementCoachingOccurred },
+    ];
+    for (const signal of activeSignals) {
+      if (dimensions[signal.dimension - 1].active !== signal.active) {
+        throw new Error(`Scoring signal contradicts dimension ${signal.dimension} active state.`);
+      }
+    }
+    if (
+      candidate.scoringSignals.nextCallBookedLive &&
+      candidate.appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)
+    ) {
+      throw new Error("Scoring signal contradicts dimension 10 cap.");
+    }
+  }
+
   for (const redFlag of candidate.redFlags) {
     for (const evidence of redFlag.evidence) assertEvidence(turns, evidence.turn, evidence.quote);
   }
 
+  const appliedDimensionCaps = [...candidate.appliedDimensionCaps];
+  if (
+    callType === "coaching" &&
+    !candidate.scoringSignals.nextCallBookedLive &&
+    !appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)
+  ) {
+    appliedDimensionCaps.push({
+      dimension: 10,
+      maximum: 0,
+      reason: "Next call was not booked live.",
+    });
+  }
+
   const capsByDimension = new Map<number, number>();
-  for (const cap of candidate.appliedDimensionCaps) {
+  for (const cap of appliedDimensionCaps) {
     const allowedCaps = config.dimensions[cap.dimension - 1]?.caps;
     if (!allowedCaps?.includes(cap.maximum)) throw new Error(`Invalid cap for dimension ${cap.dimension}.`);
     capsByDimension.set(cap.dimension, Math.min(capsByDimension.get(cap.dimension) ?? Infinity, cap.maximum));
@@ -88,9 +122,11 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     if (!config.totalCaps.includes(cap.maximum)) throw new Error(`Invalid total cap ${cap.maximum}.`);
   }
 
-  const coach = turns[0].speaker;
   const totalWords = turns.reduce((sum, turn) => sum + wordCount(turn.text), 0);
-  const coachWords = turns.reduce((sum, turn) => sum + (turn.speaker === coach ? wordCount(turn.text) : 0), 0);
+  const coachWords = turns.reduce(
+    (sum, turn) => sum + (turn.speaker === candidate.coachSpeaker ? wordCount(turn.text) : 0),
+    0,
+  );
   if (coachWords / totalWords > config.coachWordShareCap.threshold) {
     appliedTotalCaps.push({
       maximum: config.coachWordShareCap.maximum,
@@ -116,6 +152,7 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     normalizedScore,
     grade: gradeFor(normalizedScore),
     dimensions: validatedDimensions,
+    appliedDimensionCaps,
     appliedTotalCaps,
     assumptions: [...new Set(assumptions)],
   };
