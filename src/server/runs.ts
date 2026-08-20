@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename } from "node:path";
 
 import type {
   CallType,
@@ -7,6 +9,7 @@ import type {
 } from "../domain/types";
 import { evaluationCandidateSchema } from "../domain/evaluation-schema";
 import type { Json, RunRow } from "./supabase";
+import { evaluatorTestModeEnabled } from "./test-mode";
 
 export const STALE_RUN_ERROR =
   "The evaluation timed out. Please submit the transcript again.";
@@ -330,19 +333,57 @@ async function getSupabase() {
 
 const productionRepository = new RunRepository();
 
+async function withRepository<T>(
+  operation: (repository: RunRepository) => Promise<T>,
+) {
+  if (!evaluatorTestModeEnabled()) return operation(productionRepository);
+
+  const path = process.env.EVALUATOR_TEST_STORE;
+  if (
+    !path ||
+    !/^beavermind-call-evaluator-[0-9a-f-]{36}\.json$/.test(basename(path))
+  ) {
+    throw new Error("Evaluator test store is not safely configured");
+  }
+
+  let initialRuns: RunRecord[] = [];
+  try {
+    initialRuns = JSON.parse(await readFile(path, "utf8")) as RunRecord[];
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+      throw error;
+    }
+  }
+
+  const memory = new Map(
+    initialRuns.map((run) => [run.id, structuredClone(run)]),
+  );
+  const repository = new RunRepository(memory);
+  try {
+    return await operation(repository);
+  } finally {
+    await writeFile(path, JSON.stringify([...memory.values()]));
+  }
+}
+
 export const createRun = (input: CreateRunInput) =>
-  productionRepository.createRun(input);
+  withRepository((repository) => repository.createRun(input));
 export const createLimitedRun = (
   input: CreateRunInput,
   cutoff: Date,
   limit: number,
-) => productionRepository.createLimitedRun(input, cutoff, limit);
-export const claimRun = (id: string) => productionRepository.claimRun(id);
+) =>
+  withRepository((repository) =>
+    repository.createLimitedRun(input, cutoff, limit),
+  );
+export const claimRun = (id: string) =>
+  withRepository((repository) => repository.claimRun(id));
 export const completeRun = (id: string, result: EvaluationResult) =>
-  productionRepository.completeRun(id, result);
+  withRepository((repository) => repository.completeRun(id, result));
 export const failRun = (id: string, publicError: string) =>
-  productionRepository.failRun(id, publicError);
-export const getPublicRun = (id: string) => productionRepository.getPublicRun(id);
+  withRepository((repository) => repository.failRun(id, publicError));
+export const getPublicRun = (id: string) =>
+  withRepository((repository) => repository.getPublicRun(id));
 
 export function createInMemoryRunRepository(
   options: InMemoryRepositoryOptions = {},

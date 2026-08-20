@@ -18,6 +18,7 @@ const labels: Record<ActiveStatus, string> = {
 export function RunStatus({ id, initialStatus, publicError }: RunStatusProps) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
+  const [failure, setFailure] = useState(publicError);
   const [pollError, setPollError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,10 +33,16 @@ export function RunStatus({ id, initialStatus, publicError }: RunStatusProps) {
         if (!response.ok) throw new Error("Status request failed");
         const run = (await response.json()) as {
           status: "queued" | "processing" | "completed" | "failed";
+          publicError: string | null;
         };
         if (cancelled) return;
         setPollError(null);
-        if (run.status === "completed" || run.status === "failed") {
+        if (run.status === "failed") {
+          setFailure(run.publicError);
+          setStatus("failed");
+          return;
+        }
+        if (run.status === "completed") {
           router.refresh();
           return;
         }
@@ -58,7 +65,7 @@ export function RunStatus({ id, initialStatus, publicError }: RunStatusProps) {
       <main className="status-shell">
         <p className="eyebrow">Evaluation stopped</p>
         <h1>The report could not be completed.</h1>
-        <p>{publicError ?? "Submit the transcript again."}</p>
+        <p>{failure ?? "Submit the transcript again."}</p>
         <a className="primary-action" href="/">Start a new evaluation</a>
       </main>
     );

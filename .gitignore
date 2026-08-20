@@ -6,3 +6,7 @@ node_modules/
 !.env.example
 npm-debug.log*
 *.tsbuildinfo
+playwright-report/
+test-results/
+output/pdf/
+.vercel
