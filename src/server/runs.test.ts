@@ -139,6 +139,34 @@ describe("run lifecycle", () => {
     });
   });
 
+  it("preserves canonical caps and assumptions across complete and read", async () => {
+    const runs = createInMemoryRunRepository();
+    const created = await runs.createRun(submission);
+    await runs.claimRun(created.id);
+    const maxima = [10, 10, 5, 15, 10, 10, 5, 10, 10, 5, 5, 5];
+    const canonicalResult: EvaluationResult = {
+      ...evaluationResult(),
+      dimensions: evaluationResult().dimensions.map((dimension, index) => ({
+        ...dimension,
+        maximum: maxima[index],
+      })),
+      appliedTotalCaps: [
+        {
+          maximum: 80,
+          reason: "Estimated coach word share exceeded 70%.",
+        },
+      ],
+      assumptions: [
+        "The model-identified coach speaker is measured by word share as a talk-time estimate because transcripts have no timestamps.",
+      ],
+    };
+
+    await runs.completeRun(created.id, canonicalResult);
+    const publicRun = await runs.getPublicRun(created.id);
+
+    expect(publicRun?.result).toEqual(canonicalResult);
+  });
+
   it("rejects a malformed result before writing it", async () => {
     const runs = createInMemoryRunRepository();
     const created = await runs.createRun(submission);

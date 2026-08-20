@@ -5,7 +5,7 @@ import type {
   EvaluationResult,
   RunRecord,
 } from "../domain/types";
-import { validateEvaluation } from "../domain/validate-evaluation";
+import { evaluationCandidateSchema } from "../domain/evaluation-schema";
 import type { Json, RunRow } from "./supabase";
 
 export const STALE_RUN_ERROR =
@@ -104,19 +104,13 @@ class RunRepository {
   }
 
   async completeRun(id: string, result: EvaluationResult): Promise<void> {
-    const run = await this.readRun(id);
-    if (!run || run.status !== "processing") invalidTransition();
-    const validatedResult = validateEvaluation(
-      run.callType,
-      run.transcript,
-      result,
-    );
+    const parsedResult = parseEvaluationResult(result);
 
     if (this.memory) {
       const current = this.memory.get(id);
       if (!current || current.status !== "processing") invalidTransition();
       current.status = "completed";
-      current.result = structuredClone(validatedResult);
+      current.result = structuredClone(parsedResult);
       current.finishedAt = this.now().toISOString();
       return;
     }
@@ -126,7 +120,7 @@ class RunRepository {
       .from("runs")
       .update({
         status: "completed",
-        result_json: validatedResult as unknown as Json,
+        result_json: parsedResult as unknown as Json,
       })
       .eq("id", id)
       .eq("status", "processing")
@@ -156,10 +150,6 @@ class RunRepository {
         run = await this.readRun(id);
         if (!run) return null;
       }
-    }
-
-    if (run.status === "completed") {
-      run.result = validateEvaluation(run.callType, run.transcript, run.result);
     }
 
     const { transcript: _transcript, clientHash: _clientHash, ...publicRun } = run;
@@ -233,7 +223,12 @@ class RunRepository {
   private async readRun(id: string): Promise<RunRecord | null> {
     if (this.memory) {
       const run = this.memory.get(id);
-      return run ? structuredClone(run) : null;
+      if (!run) return null;
+      const storedRun = structuredClone(run);
+      if (storedRun.result !== null) {
+        storedRun.result = parseEvaluationResult(storedRun.result);
+      }
+      return storedRun;
     }
 
     const supabase = await getSupabase();
@@ -256,6 +251,10 @@ function invalidTransition(): never {
   throw new Error("Invalid run transition");
 }
 
+function parseEvaluationResult(input: unknown): EvaluationResult {
+  return evaluationCandidateSchema.parse(input) as EvaluationResult;
+}
+
 function fromRow(row: RunRow): RunRecord {
   return {
     id: row.id,
@@ -263,7 +262,8 @@ function fromRow(row: RunRow): RunRecord {
     transcript: row.transcript,
     clientHash: row.client_hash,
     status: row.status,
-    result: row.result_json as unknown as EvaluationResult | null,
+    result:
+      row.result_json === null ? null : parseEvaluationResult(row.result_json),
     publicError: row.public_error,
     createdAt: row.created_at,
     startedAt: row.started_at,
