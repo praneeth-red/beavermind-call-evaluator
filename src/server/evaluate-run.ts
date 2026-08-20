@@ -14,7 +14,34 @@ export type EvaluateRunDependencies = {
   failRun: (id: string, publicError: string) => Promise<void>;
   buildEvaluationPrompt: typeof buildEvaluationPrompt;
   requestCandidate: (prompt: string, repair?: string) => Promise<unknown>;
+  logDiagnostic?: (
+    category: "claim" | "provider" | "validation" | "persistence",
+    status?: number,
+  ) => void;
 };
+
+function safeStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const details = error as Record<string, unknown>;
+  for (const key of ["statusCode", "status"] as const) {
+    const value = details[key];
+    if (typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 599) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+export function logEvaluationDiagnostic(
+  category: "claim" | "provider" | "validation" | "persistence",
+  status?: number,
+) {
+  console.error(JSON.stringify({
+    event: "evaluation_failure",
+    category,
+    ...(status ? { status } : {}),
+  }));
+}
 
 const productionDependencies: EvaluateRunDependencies = {
   claimRun,
@@ -23,52 +50,90 @@ const productionDependencies: EvaluateRunDependencies = {
   buildEvaluationPrompt,
   requestCandidate: async (prompt, repair) =>
     (await import("./model")).requestCandidate(prompt, repair),
+  logDiagnostic: logEvaluationDiagnostic,
 };
 
 export async function evaluateRun(
   id: string,
   dependencies: EvaluateRunDependencies = productionDependencies,
 ): Promise<void> {
+  const logDiagnostic = dependencies.logDiagnostic ?? (() => undefined);
+  const failSafely = async () => {
+    try {
+      await dependencies.failRun(id, PUBLIC_FAILURE);
+    } catch (error) {
+      logDiagnostic("persistence", safeStatus(error));
+    }
+  };
+
   let run: RunRecord | null;
   try {
     run = await dependencies.claimRun(id);
-  } catch {
+  } catch (error) {
+    logDiagnostic("claim", safeStatus(error));
     return;
   }
   if (!run) return;
 
+  let prompt: string;
   try {
-    const prompt = await dependencies.buildEvaluationPrompt(
+    prompt = await dependencies.buildEvaluationPrompt(
       run.callType,
       run.transcript,
     );
-    const firstCandidate = await dependencies.requestCandidate(prompt);
-    let result: EvaluationResult;
+  } catch (error) {
+    logDiagnostic("validation", safeStatus(error));
+    await failSafely();
+    return;
+  }
 
+  let firstCandidate: unknown;
+  try {
+    firstCandidate = await dependencies.requestCandidate(prompt);
+  } catch (error) {
+    logDiagnostic("provider", safeStatus(error));
+    await failSafely();
+    return;
+  }
+
+  let result: EvaluationResult;
+  try {
+    result = validateEvaluation(
+      run.callType,
+      run.transcript,
+      firstCandidate,
+    );
+  } catch (error) {
+    logDiagnostic("validation", safeStatus(error));
+    let repairedCandidate: unknown;
     try {
-      result = validateEvaluation(
-        run.callType,
-        run.transcript,
-        firstCandidate,
-      );
-    } catch {
-      const repairedCandidate = await dependencies.requestCandidate(
+      repairedCandidate = await dependencies.requestCandidate(
         prompt,
         REPAIR_INSTRUCTION,
       );
+    } catch (providerError) {
+      logDiagnostic("provider", safeStatus(providerError));
+      await failSafely();
+      return;
+    }
+
+    try {
       result = validateEvaluation(
         run.callType,
         run.transcript,
         repairedCandidate,
       );
+    } catch (validationError) {
+      logDiagnostic("validation", safeStatus(validationError));
+      await failSafely();
+      return;
     }
+  }
 
+  try {
     await dependencies.completeRun(id, result);
-  } catch {
-    try {
-      await dependencies.failRun(id, PUBLIC_FAILURE);
-    } catch {
-      // A concurrent terminal transition or persistence outage is handled by the run lifecycle.
-    }
+  } catch (error) {
+    logDiagnostic("persistence", safeStatus(error));
+    await failSafely();
   }
 }

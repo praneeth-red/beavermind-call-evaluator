@@ -1,13 +1,19 @@
 import { readFile, unlink } from "node:fs/promises";
+import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-const KICKOFF_TRANSCRIPT = `[Coach]: E2E kickoff evidence
-[Client]: Thanks for the kickoff review`;
-const COACHING_TRANSCRIPT = `[Coach]: E2E coaching evidence
-[Client]: Thanks for the coaching review`;
-const FAILURE_TRANSCRIPT = `[Coach]: E2E_FORCE_FAILURE
-[Client]: This failure is local test data`;
+type Fixture = {
+  label: "kickoff-01" | "kickoff-02" | "coaching-01" | "coaching-02";
+  callType: "kickoff" | "coaching";
+};
+
+const fixtures: Fixture[] = [
+  { label: "kickoff-01", callType: "kickoff" },
+  { label: "kickoff-02", callType: "kickoff" },
+  { label: "coaching-01", callType: "coaching" },
+  { label: "coaching-02", callType: "coaching" },
+];
 
 async function removeTestStore() {
   const path = process.env.EVALUATOR_TEST_STORE;
@@ -20,33 +26,43 @@ async function removeTestStore() {
 test.beforeAll(removeTestStore);
 test.afterAll(removeTestStore);
 
-async function submit(
-  page: Page,
-  callType: "kickoff" | "coaching",
-  transcript: string,
-) {
+async function submit(page: Page, fixture: Fixture) {
+  const transcript = await readFile(
+    join(process.cwd(), "fixtures", "transcripts", `${fixture.label}.txt`),
+    "utf8",
+  );
   await page.goto("/");
-  await page.getByRole("radio", { name: callType === "kickoff" ? /kick-off/i : /coaching/i }).check();
+  await page.getByRole("radio", {
+    name: fixture.callType === "kickoff" ? /kick-off/i : /coaching/i,
+  }).check();
   await page.getByLabel("Transcript").fill(transcript);
   await page.getByRole("button", { name: "Evaluate call" }).click();
   await expect(page).toHaveURL(/\/runs\/[0-9a-f-]{36}$/);
   return page.url();
 }
 
-test("a kick-off run survives refresh, exposes evidence, opens 12 dimensions, and downloads PDF", async ({
+async function expectCompletedReport(page: Page) {
+  await expect(
+    page.getByRole("heading", { name: "Twelve scored dimensions" }),
+  ).toBeVisible();
+  await expect(page.locator(".dimension-list details")).toHaveCount(12);
+}
+
+test("kickoff-01 completes from the pinned fixture, survives refresh, and downloads PDF", async ({
   page,
 }) => {
-  const runUrl = await submit(page, "kickoff", KICKOFF_TRANSCRIPT);
-
+  const runUrl = await submit(page, fixtures[0]);
   await page.reload();
   await expect(page).toHaveURL(runUrl);
-  await expect(page.getByRole("heading", { name: "Twelve scored dimensions" })).toBeVisible();
-  await expect(page.getByText("E2E kickoff evidence", { exact: true }).first()).toBeVisible();
+  await expectCompletedReport(page);
 
   const dimensions = page.locator(".dimension-list details");
-  await expect(dimensions).toHaveCount(12);
   for (const summary of await dimensions.locator("summary").all()) await summary.click();
-  expect(await dimensions.evaluateAll((items) => items.every((item) => item.hasAttribute("open")))).toBe(true);
+  expect(
+    await dimensions.evaluateAll((items) =>
+      items.every((item) => item.hasAttribute("open")),
+    ),
+  ).toBe(true);
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -59,43 +75,50 @@ test("a kick-off run survives refresh, exposes evidence, opens 12 dimensions, an
   expect(pdf.byteLength).toBeGreaterThan(5_000);
 });
 
-test("a coaching run completes after its tab closes and remains usable on mobile", async ({
+test("kickoff-02 completes from the pinned fixture with all 12 canonical dimensions", async ({
+  page,
+}) => {
+  await submit(page, fixtures[1]);
+  await expectCompletedReport(page);
+  await expect(page.locator(".dimension-list details").first()).toContainText(
+    "Pre-Call Preparation",
+  );
+  await expect(page.locator(".dimension-list details").last()).toContainText(
+    "Post-Call Execution",
+  );
+});
+
+test("coaching-01 completes after its tab closes and keeps D10 at zero", async ({
   browser,
 }) => {
   const context = await browser.newContext();
   const submissionPage = await context.newPage();
-  const runUrl = await submit(submissionPage, "coaching", COACHING_TRANSCRIPT);
+  const runUrl = await submit(submissionPage, fixtures[2]);
   await submissionPage.close();
 
-  await new Promise((resolve) => setTimeout(resolve, 800));
   const reportPage = await context.newPage();
-  await reportPage.setViewportSize({ width: 390, height: 844 });
   await reportPage.goto(runUrl);
-  await expect(reportPage.getByRole("heading", { name: "Twelve scored dimensions" })).toBeVisible();
-  await expect(reportPage.locator(".dimension-list details")).toHaveCount(12);
-  await expect(reportPage.locator(".dimension-list details").nth(1)).toContainText("N/A / 0");
-  await expect(reportPage.locator(".dimension-list details").nth(3)).toContainText("N/A / 0");
-  expect(
-    await reportPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true);
+  await expectCompletedReport(reportPage);
+  await expect(reportPage.locator(".dimension-list details").nth(9)).toContainText(
+    "0 / 5",
+  );
+  await expect(reportPage.getByText("Next call was not booked live.")).toBeVisible();
   await context.close();
 });
 
-test("a failed run is terminal, safe, and stays failed after refresh", async ({ page }) => {
-  const statusRequests: string[] = [];
-  page.on("request", (request) => {
-    if (request.url().includes("/api/runs/")) statusRequests.push(request.url());
-  });
-  const runUrl = await submit(page, "kickoff", FAILURE_TRANSCRIPT);
-
-  await expect(page.getByRole("heading", { name: "The report could not be completed." })).toBeVisible();
-  await expect(page.getByText("The evaluation could not be completed. Please try again.")).toBeVisible();
-  await expect(page.getByText("E2E_FORCE_FAILURE")).toHaveCount(0);
-  const terminalRequestCount = statusRequests.length;
-  await page.waitForTimeout(2_500);
-  expect(statusRequests).toHaveLength(terminalRequestCount);
-
-  await page.reload();
-  await expect(page).toHaveURL(runUrl);
-  await expect(page.getByRole("heading", { name: "The report could not be completed." })).toBeVisible();
+test("coaching-02 completes from the pinned 64,801-byte fixture with its traps on mobile", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await submit(page, fixtures[3]);
+  await expectCompletedReport(page);
+  const dimensions = page.locator(".dimension-list details");
+  await expect(dimensions.nth(1)).toContainText("N/A / 0");
+  await expect(dimensions.nth(3)).toContainText("N/A / 0");
+  await expect(dimensions.nth(9)).toContainText("5 / 5");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });

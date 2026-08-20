@@ -65,6 +65,15 @@ export const evaluationCandidateSchema = z
         diagnosticsApplicable: scoringSignalSchema,
         movementCoachingOccurred: scoringSignalSchema,
         nextCallBookedLive: liveBookingSignalSchema,
+        followUpQuestionsAsked: scoringSignalSchema,
+        unresolvedClientConfusion: scoringSignalSchema,
+        northStarConstructed: scoringSignalSchema,
+        structuredRecapDelivered: scoringSignalSchema,
+        longTermVisionConnected: scoringSignalSchema,
+        concreteAccountabilityCommitment: scoringSignalSchema,
+        clientStrugglePresent: scoringSignalSchema,
+        clientStruggleHandled: scoringSignalSchema,
+        actionStepsStated: scoringSignalSchema,
       })
       .strict(),
     oneThing: z
