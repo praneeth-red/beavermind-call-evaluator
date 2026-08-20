@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { EvaluationResult } from "../domain/types";
+import type { EvaluationResult, RunRecord } from "../domain/types";
 import {
   STALE_RUN_ERROR,
   createInMemoryRunRepository,
@@ -8,7 +8,7 @@ import {
 
 const submission = {
   callType: "kickoff" as const,
-  transcript: "Coach: What would make this call useful?",
+  transcript: "[Coach]: What would make this call useful?",
   clientHash: "a".repeat(64),
 };
 
@@ -19,7 +19,7 @@ function evaluationResult(): EvaluationResult {
       diagnosticsApplicable: {
         value: true,
         reasoning: "The coach asks diagnostic questions.",
-        evidence: [{ turn: 1, quote: submission.transcript.slice(7) }],
+        evidence: [{ turn: 1, quote: "What would make this call useful?" }],
       },
       movementCoachingOccurred: {
         value: false,
@@ -39,14 +39,14 @@ function evaluationResult(): EvaluationResult {
     },
     brief: "A structured call with a weak close.",
     redFlags: [],
-    rawScore: 72,
+    rawScore: 0,
     activeMaximum: 100,
-    normalizedScore: 72,
-    grade: "INCONSISTENT",
+    normalizedScore: 0,
+    grade: "FAIL",
     dimensions: Array.from({ length: 12 }, (_, index) => ({
       dimension: index + 1,
       name: `Dimension ${index + 1}`,
-      score: 6,
+      score: 0,
       maximum: 10,
       active: true,
       band: "Developing",
@@ -128,10 +128,55 @@ describe("run lifecycle", () => {
     await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
       id: created.id,
       status: "completed",
-      result,
+      result: expect.objectContaining({
+        rawScore: 0,
+        activeMaximum: 100,
+        normalizedScore: 0,
+        grade: "FAIL",
+      }),
       publicError: null,
       finishedAt: "2026-08-21T10:00:02.000Z",
     });
+  });
+
+  it("rejects a malformed result before writing it", async () => {
+    const runs = createInMemoryRunRepository();
+    const created = await runs.createRun(submission);
+    await runs.claimRun(created.id);
+    const malformed = {
+      ...evaluationResult(),
+      transcript: "must stay private",
+      rawError: "must stay server-side",
+    } as unknown as EvaluationResult;
+
+    await expect(runs.completeRun(created.id, malformed)).rejects.toThrow();
+    await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
+      status: "processing",
+      result: null,
+    });
+  });
+
+  it("rejects a malformed stored result instead of returning its extra keys", async () => {
+    const id = crypto.randomUUID();
+    const storedRun: RunRecord = {
+      id,
+      ...submission,
+      status: "completed",
+      result: {
+        ...evaluationResult(),
+        clientHash: "must stay private",
+        rawError: "must stay server-side",
+      } as unknown as EvaluationResult,
+      publicError: null,
+      createdAt: "2026-08-21T10:00:00.000Z",
+      startedAt: "2026-08-21T10:00:01.000Z",
+      finishedAt: "2026-08-21T10:00:02.000Z",
+    };
+    const runs = createInMemoryRunRepository({
+      initialRuns: [storedRun],
+    });
+
+    await expect(runs.getPublicRun(id)).rejects.toThrow();
   });
 
   it("allows exactly one concurrent claim", async () => {
@@ -181,6 +226,20 @@ describe("run lifecycle", () => {
     expect(publicRun).not.toHaveProperty("clientHash");
   });
 
+  it("rejects carriage returns in public error messages", async () => {
+    const runs = createInMemoryRunRepository();
+    const created = await runs.createRun(submission);
+    await runs.claimRun(created.id);
+
+    await expect(
+      runs.failRun(created.id, "Please try again.\rraw detail"),
+    ).rejects.toThrow(/single-line/i);
+    await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
+      status: "processing",
+      publicError: null,
+    });
+  });
+
   it.each(["queued", "processing"] as const)(
     "turns stale %s work into a terminal safe failure",
     async (status) => {
@@ -204,6 +263,28 @@ describe("run lifecycle", () => {
       await expect(runs.claimRun(created.id)).resolves.toBeNull();
     },
   );
+
+  it("does not fail a run freshly claimed after a stale queued snapshot", async () => {
+    let currentTime = new Date("2026-08-21T10:00:00.000Z");
+    let nowCalls = 0;
+    let runId = "";
+    let runs!: ReturnType<typeof createInMemoryRunRepository>;
+    const now = () => {
+      nowCalls += 1;
+      if (nowCalls === 2) void runs.claimRun(runId);
+      return new Date(currentTime);
+    };
+    runs = createInMemoryRunRepository({ now, staleAfterMs: 60_000 });
+    runId = (await runs.createRun(submission)).id;
+    currentTime = new Date("2026-08-21T10:01:00.001Z");
+
+    await expect(runs.getPublicRun(runId)).resolves.toMatchObject({
+      status: "processing",
+      publicError: null,
+      startedAt: "2026-08-21T10:01:00.001Z",
+      finishedAt: null,
+    });
+  });
 
   it("reads without creating or restarting work", async () => {
     const clock = controllableClock();

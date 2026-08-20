@@ -5,6 +5,7 @@ import type {
   EvaluationResult,
   RunRecord,
 } from "../domain/types";
+import { validateEvaluation } from "../domain/validate-evaluation";
 import type { Json, RunRow } from "./supabase";
 
 export const STALE_RUN_ERROR =
@@ -21,6 +22,10 @@ type CreateRunInput = {
 type RepositoryOptions = {
   now?: () => Date;
   staleAfterMs?: number;
+};
+
+type InMemoryRepositoryOptions = RepositoryOptions & {
+  initialRuns?: RunRecord[];
 };
 
 class RunRepository {
@@ -99,12 +104,20 @@ class RunRepository {
   }
 
   async completeRun(id: string, result: EvaluationResult): Promise<void> {
+    const run = await this.readRun(id);
+    if (!run || run.status !== "processing") invalidTransition();
+    const validatedResult = validateEvaluation(
+      run.callType,
+      run.transcript,
+      result,
+    );
+
     if (this.memory) {
-      const run = this.memory.get(id);
-      if (!run || run.status !== "processing") invalidTransition();
-      run.status = "completed";
-      run.result = structuredClone(result);
-      run.finishedAt = this.now().toISOString();
+      const current = this.memory.get(id);
+      if (!current || current.status !== "processing") invalidTransition();
+      current.status = "completed";
+      current.result = structuredClone(validatedResult);
+      current.finishedAt = this.now().toISOString();
       return;
     }
 
@@ -113,7 +126,7 @@ class RunRepository {
       .from("runs")
       .update({
         status: "completed",
-        result_json: result as unknown as Json,
+        result_json: validatedResult as unknown as Json,
       })
       .eq("id", id)
       .eq("status", "processing")
@@ -124,7 +137,7 @@ class RunRepository {
   }
 
   async failRun(id: string, publicError: string): Promise<void> {
-    if (!publicError.trim() || publicError.includes("\n") || publicError.length > 300) {
+    if (!publicError.trim() || /[\r\n]/.test(publicError) || publicError.length > 300) {
       throw new Error("Public run errors must be safe, single-line messages");
     }
     if (!(await this.setFailed(id, publicError))) invalidTransition();
@@ -134,10 +147,19 @@ class RunRepository {
     let run = await this.readRun(id);
     if (!run) return null;
 
-    if (this.isStale(run)) {
-      await this.setFailed(id, STALE_RUN_ERROR);
-      run = await this.readRun(id);
-      if (!run) return null;
+    if (run.status === "queued" || run.status === "processing") {
+      const cutoff = new Date(
+        this.now().getTime() - this.staleAfterMs,
+      ).toISOString();
+      if (this.isStale(run, cutoff)) {
+        await this.setStaleFailed(run, cutoff);
+        run = await this.readRun(id);
+        if (!run) return null;
+      }
+    }
+
+    if (run.status === "completed") {
+      run.result = validateEvaluation(run.callType, run.transcript, run.result);
     }
 
     const { transcript: _transcript, clientHash: _clientHash, ...publicRun } = run;
@@ -167,6 +189,47 @@ class RunRepository {
     return Boolean(data);
   }
 
+  private async setStaleFailed(
+    observed: RunRecord,
+    cutoff: string,
+  ): Promise<boolean> {
+    const anchor = observed.status === "queued" ? "createdAt" : "startedAt";
+    if (this.memory) {
+      const run = this.memory.get(observed.id);
+      if (
+        !run ||
+        run.status !== observed.status ||
+        !run[anchor] ||
+        Date.parse(run[anchor]) >= Date.parse(cutoff)
+      ) {
+        return false;
+      }
+      run.status = "failed";
+      run.result = null;
+      run.publicError = STALE_RUN_ERROR;
+      run.finishedAt = this.now().toISOString();
+      return true;
+    }
+
+    const supabase = await getSupabase();
+    const query = supabase
+      .from("runs")
+      .update({
+        status: "failed",
+        result_json: null,
+        public_error: STALE_RUN_ERROR,
+      })
+      .eq("id", observed.id)
+      .eq("status", observed.status);
+    const { data, error } = await (observed.status === "queued"
+      ? query.lt("created_at", cutoff)
+      : query.lt("started_at", cutoff))
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+
   private async readRun(id: string): Promise<RunRecord | null> {
     if (this.memory) {
       const run = this.memory.get(id);
@@ -183,12 +246,9 @@ class RunRepository {
     return data ? fromRow(data) : null;
   }
 
-  private isStale(run: RunRecord) {
-    if (run.status !== "queued" && run.status !== "processing") return false;
+  private isStale(run: RunRecord, cutoff: string) {
     const anchor = run.status === "processing" ? run.startedAt : run.createdAt;
-    return Boolean(
-      anchor && this.now().getTime() - Date.parse(anchor) > this.staleAfterMs,
-    );
+    return Boolean(anchor && Date.parse(anchor) < Date.parse(cutoff));
   }
 }
 
@@ -226,6 +286,11 @@ export const failRun = (id: string, publicError: string) =>
   productionRepository.failRun(id, publicError);
 export const getPublicRun = (id: string) => productionRepository.getPublicRun(id);
 
-export function createInMemoryRunRepository(options: RepositoryOptions = {}) {
-  return new RunRepository(new Map(), options);
+export function createInMemoryRunRepository(
+  options: InMemoryRepositoryOptions = {},
+) {
+  const memory = new Map(
+    options.initialRuns?.map((run) => [run.id, structuredClone(run)]),
+  );
+  return new RunRepository(memory, options);
 }
