@@ -42,6 +42,7 @@ One `runs` table is enough:
 | `id` | `uuid primary key` | Permanent, unguessable run URL |
 | `call_type` | `text` | `kickoff` or `coaching` |
 | `transcript` | `text` | Original pasted transcript |
+| `client_hash` | `text` | One-way identifier used only for submission limits |
 | `status` | `text` | `queued`, `processing`, `completed`, or `failed` |
 | `result_json` | `jsonb` | Validated final report |
 | `public_error` | `text` | Safe terminal failure reason |
@@ -121,7 +122,7 @@ The submission screen has one call-type control, one large transcript field, a c
 - The public app receives no model or database secret.
 - Run pages use random UUIDs and include `noindex` metadata.
 - Transcript and model content render as escaped text, never injected HTML.
-- A small submission rate limit and the 65,000-character limit bound anonymous cost.
+- A one-way client hash limits anonymous submissions without storing the source address. The 65,000-character limit and AI Gateway budget provide additional cost bounds.
 - Only the four supplied synthetic transcripts are used for production verification.
 
 ## Definition of done
