@@ -241,10 +241,37 @@ function EvidenceList({ evidence }: { evidence: Evidence[] }) {
 
   return evidence.map((item, index) => (
     <View key={`${item.turn}-${index}`} style={styles.evidence} wrap>
-      <Text style={styles.evidenceTurn}>Turn {item.turn}</Text>
-      <Text style={styles.evidenceQuote}>&quot;{item.quote}&quot;</Text>
+      <Text style={styles.evidenceTurn} minPresenceAhead={28}>
+        Turn {item.turn}
+      </Text>
+      <Text style={styles.evidenceQuote} orphans={2} widows={2}>
+        &quot;{item.quote}&quot;
+      </Text>
     </View>
   ));
+}
+
+function DetailText({
+  body,
+  label,
+  action = false,
+}: {
+  body: string;
+  label: string;
+  action?: boolean;
+}) {
+  return (
+    <Text
+      style={action ? styles.action : styles.detail}
+      minPresenceAhead={36}
+      orphans={3}
+      widows={2}
+    >
+      <Text style={styles.detailLabel}>{label}</Text>
+      {"\n"}
+      <Text style={styles.body}>{body}</Text>
+    </Text>
+  );
 }
 
 function Dimension({ dimension }: { dimension: DimensionResult }) {
@@ -265,22 +292,19 @@ function Dimension({ dimension }: { dimension: DimensionResult }) {
         </Text>
       </View>
 
-      <View style={styles.detail}>
-        <Text style={styles.detailLabel}>Reasoning</Text>
-        <Text style={styles.body}>{dimension.reasoning}</Text>
-      </View>
+      <DetailText label="Reasoning" body={dimension.reasoning} />
       <View style={styles.detail} wrap>
-        <Text style={styles.detailLabel}>Exact turn evidence</Text>
+        <Text style={styles.detailLabel} minPresenceAhead={40}>
+          Exact turn evidence
+        </Text>
         <EvidenceList evidence={dimension.evidence} />
       </View>
-      <View style={styles.action} minPresenceAhead={45} wrap>
-        <Text style={styles.detailLabel}>Missing behavior</Text>
-        <Text style={styles.body}>{dimension.missingBehavior}</Text>
-      </View>
-      <View style={styles.detail} wrap>
-        <Text style={styles.detailLabel}>Quick fix</Text>
-        <Text style={styles.body}>{dimension.quickFix}</Text>
-      </View>
+      <DetailText
+        action
+        label="Missing behavior"
+        body={dimension.missingBehavior}
+      />
+      <DetailText label="Quick fix" body={dimension.quickFix} />
     </View>
   );
 }
