@@ -138,7 +138,7 @@ describe("evaluateRun", () => {
 
     expect(repairs).toHaveLength(2);
     expect(repairs[0]).toBeUndefined();
-    expect(repairs[1]).toMatch(/evidence quote.*turn 1/i);
+    expect(repairs[1]).toMatch(/exact turn evidence/i);
     expect(repairs[1]).not.toContain("fabricated transcript evidence");
     await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
       status: "completed",
@@ -170,6 +170,33 @@ describe("evaluateRun", () => {
       publicError: "The evaluation could not be completed. Please try again.",
     });
     expect(publicRun?.publicError).not.toContain("invented secret");
+  });
+
+  it("keeps schema-invalid model output out of repair and public errors", async () => {
+    const runs = createInMemoryRunRepository();
+    const created = await runs.createRun(submission);
+    const sentinel = "MODEL_OUTPUT_SENTINEL_8f93c1";
+    const invalid = { ...candidate(), [sentinel]: "must remain private" };
+    const repairs: Array<string | undefined> = [];
+
+    await evaluateRun(
+      created.id,
+      dependencies(runs, async (_prompt, repair) => {
+        repairs.push(repair);
+        return invalid;
+      }),
+    );
+
+    expect(repairs).toHaveLength(2);
+    expect(repairs[0]).toBeUndefined();
+    expect(repairs[1]).not.toContain(sentinel);
+    const publicRun = await runs.getPublicRun(created.id);
+    expect(publicRun).toMatchObject({
+      status: "failed",
+      result: null,
+      publicError: "The evaluation could not be completed. Please try again.",
+    });
+    expect(publicRun?.publicError).not.toContain(sentinel);
   });
 
   it("fails safely after a provider error without a repair request", async () => {

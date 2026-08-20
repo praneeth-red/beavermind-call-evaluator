@@ -5,6 +5,8 @@ import { claimRun, completeRun, failRun } from "./runs";
 
 const PUBLIC_FAILURE =
   "The evaluation could not be completed. Please try again.";
+const REPAIR_INSTRUCTION =
+  "Correct the prior result using only the rubric and transcript. Return exactly 12 dimensions with legal scores, exact turn evidence, consistent scoring signals and caps, and application-verifiable arithmetic fields. Do not repeat or discuss the prior result.";
 
 export type EvaluateRunDependencies = {
   claimRun: (id: string) => Promise<RunRecord | null>;
@@ -49,10 +51,10 @@ export async function evaluateRun(
         run.transcript,
         firstCandidate,
       );
-    } catch (error) {
+    } catch {
       const repairedCandidate = await dependencies.requestCandidate(
         prompt,
-        repairInstruction(error),
+        REPAIR_INSTRUCTION,
       );
       result = validateEvaluation(
         run.callType,
@@ -69,12 +71,4 @@ export async function evaluateRun(
       // A concurrent terminal transition or persistence outage is handled by the run lifecycle.
     }
   }
-}
-
-function repairInstruction(error: unknown) {
-  const detail =
-    error instanceof Error
-      ? error.message.replace(/\s+/g, " ").slice(0, 500)
-      : "The result failed deterministic validation.";
-  return `Correct the prior result using only rubric and transcript evidence. ${detail}`;
 }
