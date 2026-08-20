@@ -40,6 +40,51 @@ function candidateFor(callType: CallType, quote = "Coach says alpha"): Evaluatio
             ]
           : [],
       },
+      followUpQuestionsAsked: {
+        value: !coaching,
+        reasoning: coaching ? "Not used for coaching calls." : "A follow-up question was asked.",
+        evidence: coaching ? [] : [{ turn: 1, quote }],
+      },
+      unresolvedClientConfusion: {
+        value: false,
+        reasoning: "No unresolved confusion was observed.",
+        evidence: [],
+      },
+      northStarConstructed: {
+        value: !coaching,
+        reasoning: coaching ? "Not used for coaching calls." : "A North Star was constructed.",
+        evidence: coaching ? [] : [{ turn: 1, quote }],
+      },
+      structuredRecapDelivered: {
+        value: !coaching,
+        reasoning: coaching ? "Not used for coaching calls." : "A structured recap was delivered.",
+        evidence: coaching ? [] : [{ turn: 1, quote }],
+      },
+      longTermVisionConnected: {
+        value: coaching,
+        reasoning: coaching ? "The long-term vision was connected." : "Not used for kick-off calls.",
+        evidence: coaching ? [{ turn: 1, quote }] : [],
+      },
+      concreteAccountabilityCommitment: {
+        value: coaching,
+        reasoning: coaching ? "A concrete commitment was confirmed." : "Not used for kick-off calls.",
+        evidence: coaching ? [{ turn: 1, quote }] : [],
+      },
+      clientStrugglePresent: {
+        value: false,
+        reasoning: "No client struggle was present.",
+        evidence: [],
+      },
+      clientStruggleHandled: {
+        value: false,
+        reasoning: "No client struggle required handling.",
+        evidence: [],
+      },
+      actionStepsStated: {
+        value: coaching,
+        reasoning: coaching ? "Action steps were stated." : "Not used for kick-off calls.",
+        evidence: coaching ? [{ turn: 1, quote }] : [],
+      },
     },
     oneThing: {
       improvement: "Ask one more question",
@@ -119,11 +164,173 @@ describe("score utilities", () => {
 });
 
 describe("validateEvaluation", () => {
+  it("canonicalizes model-supplied dimension names and bands from the rubric score", () => {
+    const candidate = candidateFor("kickoff");
+    candidate.dimensions[0] = {
+      ...candidate.dimensions[0],
+      name: "MODEL_CONTROLLED_NAME",
+      score: 9,
+      band: "MODEL_CONTROLLED_BAND",
+    };
+
+    const result = validateEvaluation("kickoff", BASE_TRANSCRIPT, candidate);
+
+    expect(result.dimensions[0]).toMatchObject({
+      name: "Pre-Call Preparation",
+      score: 9,
+      band: "Elite",
+    });
+    expect(result.grade).toBe("FAIL");
+  });
+
+  it.each([
+    [
+      "kickoff",
+      [9, 7, 4.5, 10, 6, 7, 3, 7, 7, 2.5, 3, 4],
+      ["Elite", "Strong", "Elite", "Strong", "Strong", "Strong", "Mid", "Strong", "Strong", "Mid", "Mid", "Strong"],
+      ["Pre-Call Preparation", "Rapport & Tone", "Agenda Framing", "Goal Alignment & Deep Why", "Program Explanation (3 Phases)", "Journey & Expectation Setting", "Support System Clarity", "Coaching Intelligence Questions", "Next Steps & Diagnostics", "Booking Next Call", "Close, Recap & Confidence", "Post-Call Execution"],
+    ],
+    [
+      "coaching",
+      [3, 7, 10, 5, 3, 10, 3, 5, 3, 5, 3, 3],
+      ["Surface", "Strong", "Strong", "Mid", "Surface", "Strong", "Mid", "Elite", "Mid", "Elite", "Mid", "Mid"],
+      ["Check-In & Connection", "Diagnostics Review", "Program Focus + Vision", "Movement Coaching Quality", "Adjustments & Strategy", "Action Steps & Accountability", "Accountability Anchor", "Struggle Handling", "Close Quality", "Next Call Booking", "Continuity & Follow-Up Clarity", "Structure & Time Management"],
+    ],
+  ] as const)("derives all %s dimension names and bands", (callType, scores, bands, names) => {
+    const candidate = candidateFor(callType);
+    candidate.dimensions.forEach((dimension, index) => {
+      dimension.name = "MODEL_NAME";
+      dimension.band = "MODEL_BAND";
+      dimension.score = scores[index];
+    });
+
+    const result = validateEvaluation(callType, BASE_TRANSCRIPT, candidate);
+
+    expect(result.dimensions.map(({ name }) => name)).toEqual(names);
+    expect(result.dimensions.map(({ band }) => band)).toEqual(bands);
+  });
+
+  it("derives every kickoff cap from evidence-backed signals and ignores model cap arrays", () => {
+    const candidate = candidateFor("kickoff");
+    Object.assign(candidate.scoringSignals, {
+      followUpQuestionsAsked: {
+        value: false,
+        reasoning: "No follow-up question was observed.",
+        evidence: [],
+      },
+      unresolvedClientConfusion: {
+        value: true,
+        reasoning: "The client remained confused.",
+        evidence: [{ turn: 2, quote: "Client says beta gamma" }],
+      },
+      northStarConstructed: {
+        value: false,
+        reasoning: "No North Star was constructed.",
+        evidence: [],
+      },
+      structuredRecapDelivered: {
+        value: false,
+        reasoning: "No structured recap was delivered.",
+        evidence: [],
+      },
+      longTermVisionConnected: { value: false, reasoning: "Not used.", evidence: [] },
+      concreteAccountabilityCommitment: { value: false, reasoning: "Not used.", evidence: [] },
+      clientStrugglePresent: { value: false, reasoning: "Not used.", evidence: [] },
+      clientStruggleHandled: { value: false, reasoning: "Not used.", evidence: [] },
+      actionStepsStated: { value: false, reasoning: "Not used.", evidence: [] },
+    });
+    candidate.dimensions.forEach((dimension, index) => {
+      dimension.score = KICKOFF_MAXIMA[index];
+    });
+    candidate.appliedDimensionCaps = [
+      { dimension: 4, maximum: 10, reason: "MODEL_INVENTED_DIMENSION_CAP" },
+    ];
+    candidate.appliedTotalCaps = [
+      { maximum: 80, reason: "MODEL_INVENTED_TOTAL_CAP" },
+    ];
+
+    const result = validateEvaluation("kickoff", BASE_TRANSCRIPT, candidate);
+
+    expect(result.appliedDimensionCaps).toEqual([
+      { dimension: 4, maximum: 10, reason: "No North Star statement was constructed." },
+      { dimension: 11, maximum: 3, reason: "No structured recap was delivered." },
+    ]);
+    expect(result.appliedTotalCaps).toEqual([
+      { maximum: 70, reason: "No follow-up questions were asked." },
+      { maximum: 75, reason: "The client showed unresolved confusion." },
+    ]);
+    expect(result.dimensions[3]).toMatchObject({ score: 10, band: "Strong" });
+    expect(result.dimensions[10]).toMatchObject({ score: 3, band: "Mid" });
+  });
+
+  it("derives every coaching cap from evidence-backed signals and ignores model cap arrays", () => {
+    const candidate = candidateFor("coaching");
+    Object.assign(candidate.scoringSignals, {
+      followUpQuestionsAsked: { value: false, reasoning: "Not used.", evidence: [] },
+      unresolvedClientConfusion: { value: false, reasoning: "Not used.", evidence: [] },
+      northStarConstructed: { value: false, reasoning: "Not used.", evidence: [] },
+      structuredRecapDelivered: { value: false, reasoning: "Not used.", evidence: [] },
+      longTermVisionConnected: {
+        value: false,
+        reasoning: "No long-term vision connection was observed.",
+        evidence: [],
+      },
+      concreteAccountabilityCommitment: {
+        value: false,
+        reasoning: "No concrete client-owned commitment was observed.",
+        evidence: [],
+      },
+      clientStrugglePresent: {
+        value: true,
+        reasoning: "The client described a struggle.",
+        evidence: [{ turn: 2, quote: "Client says beta gamma" }],
+      },
+      clientStruggleHandled: {
+        value: false,
+        reasoning: "The struggle was not handled.",
+        evidence: [],
+      },
+      actionStepsStated: {
+        value: false,
+        reasoning: "No action steps were stated.",
+        evidence: [],
+      },
+    });
+    candidate.scoringSignals.nextCallBookedLive.value = false;
+    candidate.scoringSignals.nextCallBookedLive.evidence = [];
+    candidate.dimensions.forEach((dimension, index) => {
+      dimension.score = COACHING_MAXIMA[index];
+    });
+    candidate.appliedDimensionCaps = [
+      { dimension: 4, maximum: 0, reason: "MODEL_INVENTED_DIMENSION_CAP" },
+    ];
+    candidate.appliedTotalCaps = [
+      { maximum: 75, reason: "MODEL_INVENTED_TOTAL_CAP" },
+    ];
+
+    const result = validateEvaluation("coaching", BASE_TRANSCRIPT, candidate);
+
+    expect(result.appliedDimensionCaps).toEqual([
+      { dimension: 10, maximum: 0, reason: "Next call was not booked live." },
+      { dimension: 3, maximum: 10, reason: "No long-term vision connection was made." },
+      { dimension: 6, maximum: 10, reason: "No concrete client-owned accountability commitment was confirmed." },
+      { dimension: 8, maximum: 0, reason: "A client struggle was present but ignored or avoided." },
+    ]);
+    expect(result.appliedTotalCaps).toEqual([
+      { maximum: 70, reason: "No action steps were stated for either party." },
+    ]);
+    expect(result.dimensions[2]).toMatchObject({ score: 10, band: "Strong" });
+    expect(result.dimensions[5]).toMatchObject({ score: 10, band: "Strong" });
+    expect(result.dimensions[7]).toMatchObject({ score: 0, band: "Fail" });
+    expect(result.dimensions[9]).toMatchObject({ score: 0, band: "Fail" });
+  });
+
   it("accepts explicit coach identity and scoring signals", () => {
     const candidate = {
       ...candidateFor("coaching"),
       coachSpeaker: "Coach",
       scoringSignals: {
+        ...candidateFor("coaching").scoringSignals,
         diagnosticsApplicable: {
           value: true,
           reasoning: "Diagnostics were reviewed.",
@@ -292,13 +499,10 @@ describe("validateEvaluation", () => {
     candidate.dimensions.forEach((dimension, index) => {
       dimension.score = COACHING_MAXIMA[index];
     });
-    candidate.appliedDimensionCaps = [
-      { dimension: 3, maximum: 10, reason: "No long-term vision connection." },
-    ];
-    candidate.appliedTotalCaps = [
-      { maximum: 75, reason: "Coach dominated the call." },
-      { maximum: 70, reason: "No action steps before close." },
-    ];
+    candidate.scoringSignals.longTermVisionConnected.value = false;
+    candidate.scoringSignals.longTermVisionConnected.evidence = [];
+    candidate.scoringSignals.actionStepsStated.value = false;
+    candidate.scoringSignals.actionStepsStated.evidence = [];
 
     const result = validateEvaluation("coaching", BASE_TRANSCRIPT, candidate);
 
@@ -408,7 +612,7 @@ describe("validateEvaluation", () => {
     expect(result.dimensions[9].score).toBe(5);
   });
 
-  it("rejects inactive dimensions and caps that contradict positive scoring signals", () => {
+  it("rejects inactive dimensions and ignores model caps that contradict positive signals", () => {
     const inactiveDiagnostics = candidateFor("coaching");
     inactiveDiagnostics.dimensions[1] = {
       ...inactiveDiagnostics.dimensions[1],
@@ -425,8 +629,10 @@ describe("validateEvaluation", () => {
     contradictoryBookingCap.appliedDimensionCaps = [
       { dimension: 10, maximum: 0, reason: "Next call was not booked live." },
     ];
-    expect(() => validateEvaluation("coaching", BASE_TRANSCRIPT, contradictoryBookingCap)).toThrow(
-      /scoring signal.*dimension 10/i,
+    const result = validateEvaluation("coaching", BASE_TRANSCRIPT, contradictoryBookingCap);
+    expect(result.dimensions[9].score).toBe(5);
+    expect(result.appliedDimensionCaps).not.toContainEqual(
+      expect.objectContaining({ dimension: 10, maximum: 0 }),
     );
   });
 

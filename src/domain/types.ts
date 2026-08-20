@@ -24,24 +24,31 @@ export interface DimensionResult {
   quickFix: string;
 }
 
+interface ScoringSignal {
+  value: boolean;
+  reasoning: string;
+  evidence: Evidence[];
+}
+
 export interface EvaluationResult {
   coachSpeaker: string;
   scoringSignals: {
-    diagnosticsApplicable: {
-      value: boolean;
-      reasoning: string;
-      evidence: Evidence[];
-    };
-    movementCoachingOccurred: {
-      value: boolean;
-      reasoning: string;
-      evidence: Evidence[];
-    };
+    diagnosticsApplicable: ScoringSignal;
+    movementCoachingOccurred: ScoringSignal;
     nextCallBookedLive: {
       value: boolean;
       reasoning: string;
       evidence: Array<Evidence & { criterion: "link" | "action" | "confirmation" }>;
     };
+    followUpQuestionsAsked: ScoringSignal;
+    unresolvedClientConfusion: ScoringSignal;
+    northStarConstructed: ScoringSignal;
+    structuredRecapDelivered: ScoringSignal;
+    longTermVisionConnected: ScoringSignal;
+    concreteAccountabilityCommitment: ScoringSignal;
+    clientStrugglePresent: ScoringSignal;
+    clientStruggleHandled: ScoringSignal;
+    actionStepsStated: ScoringSignal;
   };
   oneThing: {
     improvement: string;

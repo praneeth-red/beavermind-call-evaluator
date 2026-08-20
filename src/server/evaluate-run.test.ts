@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { EvaluationResult } from "../domain/types";
-import { evaluateRun, type EvaluateRunDependencies } from "./evaluate-run";
+import {
+  evaluateRun,
+  logEvaluationDiagnostic,
+  type EvaluateRunDependencies,
+} from "./evaluate-run";
 import { buildEvaluationPrompt } from "./prompt";
 import { createInMemoryRunRepository } from "./runs";
 
@@ -33,6 +37,15 @@ function candidate(): EvaluationResult {
         reasoning: "This signal is not used for kick-off calls.",
         evidence: [],
       },
+      followUpQuestionsAsked: { value: true, reasoning: "A follow-up question was asked.", evidence: [{ turn: 1, quote: "Coach says alpha" }] },
+      unresolvedClientConfusion: { value: false, reasoning: "No unresolved confusion.", evidence: [] },
+      northStarConstructed: { value: true, reasoning: "A North Star was constructed.", evidence: [{ turn: 1, quote: "Coach says alpha" }] },
+      structuredRecapDelivered: { value: true, reasoning: "A recap was delivered.", evidence: [{ turn: 1, quote: "Coach says alpha" }] },
+      longTermVisionConnected: { value: false, reasoning: "Not used for kick-off calls.", evidence: [] },
+      concreteAccountabilityCommitment: { value: false, reasoning: "Not used for kick-off calls.", evidence: [] },
+      clientStrugglePresent: { value: false, reasoning: "No struggle was present.", evidence: [] },
+      clientStruggleHandled: { value: false, reasoning: "No struggle required handling.", evidence: [] },
+      actionStepsStated: { value: false, reasoning: "Not used for kick-off calls.", evidence: [] },
     },
     oneThing: {
       improvement: "Ask one deeper question.",
@@ -88,10 +101,80 @@ describe("buildEvaluationPrompt", () => {
     expect(prompt).toContain("diagnosticsApplicable");
     expect(prompt).toContain("movementCoachingOccurred");
     expect(prompt).toContain("nextCallBookedLive");
+    expect(prompt).toContain("northStarConstructed");
+    expect(prompt).toContain("structuredRecapDelivered");
+    expect(prompt).toContain("unresolvedClientConfusion");
+    expect(prompt).toContain("concreteAccountabilityCommitment");
+    expect(prompt).toContain("clientStruggleHandled");
+    expect(prompt).toContain("actionStepsStated");
   });
 });
 
 describe("evaluateRun", () => {
+  it("writes only the diagnostic category and safe numeric status", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    logEvaluationDiagnostic("provider", 403);
+
+    expect(consoleError).toHaveBeenCalledWith(
+      '{"event":"evaluation_failure","category":"provider","status":403}',
+    );
+    consoleError.mockRestore();
+  });
+
+  it("reports sanitized claim, provider, validation, and persistence categories", async () => {
+    const diagnostics: Array<{ category: string; status?: number }> = [];
+    const sentinel = "RAW_PROVIDER_ACCOUNT_SENTINEL";
+    const capture = (category: string, status?: number) => {
+      diagnostics.push({ category, ...(status ? { status } : {}) });
+    };
+
+    const claimRuns = createInMemoryRunRepository();
+    const claimRun = await claimRuns.createRun(submission);
+    const claimDependencies = dependencies(claimRuns, async () => candidate()) as
+      EvaluateRunDependencies & { logDiagnostic: typeof capture };
+    claimDependencies.claimRun = async () => {
+      throw Object.assign(new Error(sentinel), { statusCode: 503 });
+    };
+    claimDependencies.logDiagnostic = capture;
+    await evaluateRun(claimRun.id, claimDependencies);
+
+    const providerRuns = createInMemoryRunRepository();
+    const providerRun = await providerRuns.createRun(submission);
+    const providerDependencies = dependencies(providerRuns, async () => {
+      throw Object.assign(new Error(sentinel), { statusCode: 403 });
+    }) as EvaluateRunDependencies & { logDiagnostic: typeof capture };
+    providerDependencies.logDiagnostic = capture;
+    await evaluateRun(providerRun.id, providerDependencies);
+
+    const validationRuns = createInMemoryRunRepository();
+    const validationRun = await validationRuns.createRun(submission);
+    const invalid = { ...candidate(), rawScore: Number.NaN };
+    const validationDependencies = dependencies(validationRuns, async () => invalid) as
+      EvaluateRunDependencies & { logDiagnostic: typeof capture };
+    validationDependencies.logDiagnostic = capture;
+    await evaluateRun(validationRun.id, validationDependencies);
+
+    const persistenceRuns = createInMemoryRunRepository();
+    const persistenceRun = await persistenceRuns.createRun(submission);
+    const persistenceDependencies = dependencies(persistenceRuns, async () => candidate()) as
+      EvaluateRunDependencies & { logDiagnostic: typeof capture };
+    persistenceDependencies.completeRun = async () => {
+      throw Object.assign(new Error(sentinel), { status: 409 });
+    };
+    persistenceDependencies.logDiagnostic = capture;
+    await evaluateRun(persistenceRun.id, persistenceDependencies);
+
+    expect(diagnostics).toEqual([
+      { category: "claim", status: 503 },
+      { category: "provider", status: 403 },
+      { category: "validation" },
+      { category: "validation" },
+      { category: "persistence", status: 409 },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain(sentinel);
+  });
+
   it("claims, validates, and completes a run with one model request", async () => {
     const runs = createInMemoryRunRepository();
     const created = await runs.createRun(submission);

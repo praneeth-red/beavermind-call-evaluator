@@ -32,6 +32,17 @@ function assertSignalEvidence(turns: TranscriptTurn[], evidence: Array<{ turn: n
   for (const item of evidence) assertEvidence(turns, item.turn, item.quote);
 }
 
+function assertPositiveSignal(
+  turns: TranscriptTurn[],
+  label: string,
+  signal: { value: boolean; evidence: Array<{ turn: number; quote: string }> },
+) {
+  if (signal.value && signal.evidence.length === 0) {
+    throw new Error(`${label} scoring signal requires evidence.`);
+  }
+  assertSignalEvidence(turns, signal.evidence);
+}
+
 function wordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
@@ -51,10 +62,32 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     throw new Error("Evaluation must contain dimensions 1 through 12 exactly once.");
   }
 
+  const signals = candidate.scoringSignals;
+  const evidenceBackedSignals = [
+    ["Diagnostics", signals.diagnosticsApplicable],
+    ["Movement", signals.movementCoachingOccurred],
+    ["Follow-up questions", signals.followUpQuestionsAsked],
+    ["Unresolved confusion", signals.unresolvedClientConfusion],
+    ["North Star", signals.northStarConstructed],
+    ["Structured recap", signals.structuredRecapDelivered],
+    ["Long-term vision", signals.longTermVisionConnected],
+    ["Accountability commitment", signals.concreteAccountabilityCommitment],
+    ["Client struggle present", signals.clientStrugglePresent],
+    ["Client struggle handled", signals.clientStruggleHandled],
+    ["Action steps", signals.actionStepsStated],
+  ] as const;
+  for (const [label, signal] of evidenceBackedSignals) {
+    assertPositiveSignal(turns, label, signal);
+  }
+  assertSignalEvidence(turns, signals.nextCallBookedLive.evidence);
+  if (signals.clientStruggleHandled.value && !signals.clientStrugglePresent.value) {
+    throw new Error("A handled client struggle requires a present client struggle.");
+  }
+
   if (callType === "coaching") {
-    const diagnostics = candidate.scoringSignals.diagnosticsApplicable;
-    const movement = candidate.scoringSignals.movementCoachingOccurred;
-    const liveBooking = candidate.scoringSignals.nextCallBookedLive;
+    const diagnostics = signals.diagnosticsApplicable;
+    const movement = signals.movementCoachingOccurred;
+    const liveBooking = signals.nextCallBookedLive;
     const activeSignals = [
       { dimension: 2, active: diagnostics.value },
       { dimension: 4, active: movement.value },
@@ -64,16 +97,6 @@ export function validateEvaluation(callType: CallType, transcript: string, input
         throw new Error(`Scoring signal contradicts dimension ${signal.dimension} active state.`);
       }
     }
-
-    if (diagnostics.value && diagnostics.evidence.length === 0) {
-      throw new Error("Diagnostics scoring signal requires evidence.");
-    }
-    if (movement.value && movement.evidence.length === 0) {
-      throw new Error("Movement scoring signal requires evidence.");
-    }
-    assertSignalEvidence(turns, diagnostics.evidence);
-    assertSignalEvidence(turns, movement.evidence);
-    assertSignalEvidence(turns, liveBooking.evidence);
 
     if (liveBooking.value) {
       const criteria = new Set(liveBooking.evidence.map((evidence) => evidence.criterion));
@@ -90,9 +113,6 @@ export function validateEvaluation(callType: CallType, transcript: string, input
       if (dimensions[9].score !== 5) {
         throw new Error("Live booking scoring signal requires dimension 10 score 5.");
       }
-      if (candidate.appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)) {
-        throw new Error("Scoring signal contradicts dimension 10 cap.");
-      }
     }
   }
 
@@ -100,17 +120,70 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     for (const evidence of redFlag.evidence) assertEvidence(turns, evidence.turn, evidence.quote);
   }
 
-  const appliedDimensionCaps = [...candidate.appliedDimensionCaps];
-  if (
-    callType === "coaching" &&
-    !candidate.scoringSignals.nextCallBookedLive.value &&
-    !appliedDimensionCaps.some((cap) => cap.dimension === 10 && cap.maximum === 0)
-  ) {
-    appliedDimensionCaps.push({
-      dimension: 10,
-      maximum: 0,
-      reason: "Next call was not booked live.",
-    });
+  const appliedDimensionCaps: EvaluationResult["appliedDimensionCaps"] = [];
+  const appliedTotalCaps: EvaluationResult["appliedTotalCaps"] = [];
+  if (callType === "kickoff") {
+    if (!signals.northStarConstructed.value) {
+      appliedDimensionCaps.push({
+        dimension: 4,
+        maximum: 10,
+        reason: "No North Star statement was constructed.",
+      });
+    }
+    if (!signals.structuredRecapDelivered.value) {
+      appliedDimensionCaps.push({
+        dimension: 11,
+        maximum: 3,
+        reason: "No structured recap was delivered.",
+      });
+    }
+    if (!signals.followUpQuestionsAsked.value) {
+      appliedTotalCaps.push({
+        maximum: 70,
+        reason: "No follow-up questions were asked.",
+      });
+    }
+    if (signals.unresolvedClientConfusion.value) {
+      appliedTotalCaps.push({
+        maximum: 75,
+        reason: "The client showed unresolved confusion.",
+      });
+    }
+  } else {
+    if (!signals.nextCallBookedLive.value) {
+      appliedDimensionCaps.push({
+        dimension: 10,
+        maximum: 0,
+        reason: "Next call was not booked live.",
+      });
+    }
+    if (!signals.longTermVisionConnected.value) {
+      appliedDimensionCaps.push({
+        dimension: 3,
+        maximum: 10,
+        reason: "No long-term vision connection was made.",
+      });
+    }
+    if (!signals.concreteAccountabilityCommitment.value) {
+      appliedDimensionCaps.push({
+        dimension: 6,
+        maximum: 10,
+        reason: "No concrete client-owned accountability commitment was confirmed.",
+      });
+    }
+    if (signals.clientStrugglePresent.value && !signals.clientStruggleHandled.value) {
+      appliedDimensionCaps.push({
+        dimension: 8,
+        maximum: 0,
+        reason: "A client struggle was present but ignored or avoided.",
+      });
+    }
+    if (!signals.actionStepsStated.value) {
+      appliedTotalCaps.push({
+        maximum: 70,
+        reason: "No action steps were stated for either party.",
+      });
+    }
   }
 
   const capsByDimension = new Map<number, number>();
@@ -128,7 +201,7 @@ export function validateEvaluation(callType: CallType, transcript: string, input
       if (dimension.score !== null || dimension.band !== "N/A") {
         throw new Error(`Inactive dimension ${dimension.dimension} must have score null and band N/A.`);
       }
-      return { ...dimension, maximum: 0 };
+      return { ...dimension, name: rule.name, maximum: 0, band: "N/A" };
     }
 
     if (dimension.score === null || !rule.scores.includes(dimension.score)) {
@@ -139,20 +212,24 @@ export function validateEvaluation(callType: CallType, transcript: string, input
       throw new Error(`Dimension ${dimension.dimension} requires transcript evidence.`);
     }
 
+    const score = Math.min(
+      dimension.score,
+      capsByDimension.get(dimension.dimension) ?? dimension.score,
+    );
+    const band = rule.bands.find((ruleBand) => ruleBand.scores.includes(score))?.band;
+    if (!band) throw new Error(`Dimension ${dimension.dimension} has no rubric band.`);
+
     return {
       ...dimension,
-      score: Math.min(dimension.score, capsByDimension.get(dimension.dimension) ?? dimension.score),
+      name: rule.name,
+      score,
       maximum: rule.maximum,
+      band,
     };
   });
 
   const rawScore = validatedDimensions.reduce((sum, dimension) => sum + (dimension.score ?? 0), 0);
   const activeMaximum = validatedDimensions.reduce((sum, dimension) => sum + dimension.maximum, 0);
-  const appliedTotalCaps = [...candidate.appliedTotalCaps];
-  for (const cap of appliedTotalCaps) {
-    if (!config.totalCaps.includes(cap.maximum)) throw new Error(`Invalid total cap ${cap.maximum}.`);
-  }
-
   const totalWords = turns.reduce((sum, turn) => sum + wordCount(turn.text), 0);
   const coachWords = turns.reduce(
     (sum, turn) => sum + (turn.speaker === candidate.coachSpeaker ? wordCount(turn.text) : 0),

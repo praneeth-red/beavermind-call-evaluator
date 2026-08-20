@@ -38,7 +38,7 @@ The application, not the model, calculates dimension caps, raw points, active ma
 
 ## Local setup
 
-Requirements: Node.js 20.9 or newer, npm, and the Supabase CLI for a real database.
+Requirements: Node.js 20.9 or newer, npm, the Supabase CLI for a real database, and Poppler's `pdftotext` for the PDF content tests. On macOS, install Poppler with `brew install poppler`.
 
 ```bash
 npm ci
@@ -77,9 +77,9 @@ npm run build
 npm run test:e2e
 ```
 
-Unit and integration tests cover fixture integrity, scoring and evidence rules, run transitions, atomic submission limits, the Luna worker boundary, report markup, and real PDF bytes. Playwright starts a real local Next.js process and covers both call types, permanent URLs, refresh, close-tab background completion, terminal failure, 12 disclosures, exact evidence, mobile overflow, and PDF download.
+Unit and integration tests cover fixture integrity, scoring and evidence rules, run transitions, atomic submission limits, safe terminal failure, the Luna worker boundary, report markup, and real PDF bytes. Playwright starts a real local Next.js process, submits all four exact pinned transcripts, and covers permanent URLs, refresh, close-tab background completion, all 12 dimensions, both coaching traps, mobile overflow, and PDF download.
 
-`npm run test:e2e` sets `EVALUATOR_TEST_MODE=1`, uses a deterministic model result, and stores runs in a per-suite file under the operating system temp directory. The suite removes that file before and after use. Next.js startup and server runtime both throw if test mode is enabled in production. Test mode is never a deployment setting.
+`npm run test:e2e` sets `EVALUATOR_TEST_MODE=1`. Its deterministic adapter derives structured signals from observable numbered turns in the pinned fixtures, then sends the candidate through the real evidence, cap, label, arithmetic, storage, HTML, and PDF path. This proves the pipeline and validator. It does not prove live-model semantic accuracy. Runs use a per-suite file under the operating system temp directory, removed before and after the suite. Next.js startup and server runtime both throw if test mode is enabled in production. Test mode is never a deployment setting.
 
 ## Security and privacy
 
@@ -89,7 +89,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 - Run UUIDs are unguessable share links, not authentication. Anyone with a run URL can read that report.
 - Report and transcript-derived content render as React text, never injected HTML.
 - Run pages are `noindex`; status and PDF responses use `no-store`.
-- Public errors are fixed, single-line messages. Raw model and storage errors remain server-side.
+- Public errors are fixed, single-line messages. Server logs contain only the sanitized failure category (`claim`, `provider`, `validation`, or `persistence`) and a numeric HTTP-like status when one is safely available. Raw model/provider text, transcript content, secrets, and account identifiers are neither exposed nor logged.
 
 ## Deployment
 

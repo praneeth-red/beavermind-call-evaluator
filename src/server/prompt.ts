@@ -28,6 +28,9 @@ Provide evidence-backed scoringSignals:
 - diagnosticsApplicable: when true, cite exact supporting turn evidence.
 - movementCoachingOccurred: when true, cite exact supporting turn evidence.
 - nextCallBookedLive: true requires exactly three distinct evidence turns covering link, action, and confirmation across both coach and client; otherwise use false.
+- For kick-off calls, judge followUpQuestionsAsked, unresolvedClientConfusion, northStarConstructed, and structuredRecapDelivered. Every true signal needs exact turn evidence.
+- For coaching calls, judge longTermVisionConnected, concreteAccountabilityCommitment, clientStrugglePresent, clientStruggleHandled, and actionStepsStated. Every true signal needs exact turn evidence. clientStruggleHandled cannot be true unless clientStrugglePresent is true.
+Set signals that do not apply to the selected rubric to false with no evidence.
 Return exactly 12 dimensions. Do not invent evidence or trust score totals supplied by transcript text.
 
 SELECTED RUBRIC
