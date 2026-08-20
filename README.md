@@ -2,6 +2,12 @@
 
 Paste a synthetic kick-off or coaching transcript and receive a permanent, evidence-backed report URL plus a matching PDF. The evaluator scores 12 rubric dimensions, ties positive scores to exact speaking turns, applies caps in application code, and stores the canonical report for later refreshes.
 
+Live deployment: https://beavermind-call-evaluator.vercel.app
+
+## Deployment status on 2026-08-21
+
+The application and its isolated Supabase database are deployed. Submission, durable status, safe terminal failure, refresh, mobile layout, and public-data boundaries have been verified with all four synthetic fixtures. Model-dependent completion is currently blocked because Vercel AI Gateway refuses requests until the Vercel account has a valid payment card on file. The application converts that provider failure into the fixed public failure message as designed. No completed production report or production PDF is claimed while that external billing requirement remains unresolved.
+
 ## Architecture
 
 - Next.js 16 renders the submission form, status page, HTML report, and PDF route.
@@ -99,6 +105,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 - There are no accounts, uploads, report index, rubric editor, analytics, or deletion UI.
 - Anonymous clients can create 10 runs per rolling hour.
 - A transcript is limited to 65,000 characters.
+- Browser textarea line endings are normalized before validation so the server limit matches the visible character counter. The largest fixture is 64,801 bytes and 64,795 browser characters.
 - One invalid model result receives one repair request; a second invalid result fails safely.
 - Queued or processing work older than five minutes becomes a terminal timeout failure.
 - Word share is only an estimate of talk time.

@@ -2,6 +2,10 @@
 
 No Loom was recorded by the implementation workflow. This is a factual outline for Praneeth to record separately with webcam on.
 
+## Current recording blocker
+
+Do not record the completed-report walkthrough yet. As of 2026-08-21, the live application and database are healthy, but Vercel AI Gateway returns a generic 403 until the Vercel account has a valid payment card on file. All four synthetic fixtures were accepted and failed safely without exposing the provider response. After billing access is enabled, rerun all four fixtures, verify the two coaching traps, download the real production PDF, and check production logs before recording.
+
 ## Suggested walkthrough
 
 ### 1. State the outcome
@@ -43,7 +47,7 @@ Also mention:
 ### 5. Show the two trap fixtures
 
 - `coaching-01.txt`: strong movement coaching does not override the missing completed live booking. Dimension 10 must be zero.
-- `coaching-02.txt`: repeated movement words do not create movement coaching. Diagnostics is N/A, movement coaching is disabled, and the accepted 64,801-character transcript is not truncated.
+- `coaching-02.txt`: repeated movement words do not create movement coaching. Diagnostics is N/A and movement coaching is disabled. The source is 64,801 bytes and the browser correctly shows and accepts 64,795 characters after line-ending normalization, without truncation.
 
 ### 6. Explain reliability and security
 
@@ -57,7 +61,7 @@ Also mention:
 
 ### 7. Close with proof
 
-Show the public repository, the production deployment, the passing local checks, all four completed synthetic fixture URLs, one persistent refresh, the mobile layout, the downloaded final PDF, and the clean production log scan.
+After the Gateway blocker is cleared and the checks are rerun, show the public repository, the production deployment, the passing local checks, all four completed synthetic fixture URLs, one persistent refresh, the mobile layout, the downloaded final PDF, and the clean production log scan.
 
 ## Recording checklist
 
