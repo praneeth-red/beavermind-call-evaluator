@@ -95,6 +95,31 @@ describe("run lifecycle", () => {
     );
   });
 
+  it("counts only the client hash submissions inside a rolling window", async () => {
+    const clock = controllableClock();
+    const runs = createInMemoryRunRepository({ now: clock.now });
+
+    await Promise.all(
+      Array.from({ length: 10 }, () => runs.createRun(submission)),
+    );
+    await runs.createRun({ ...submission, clientHash: "b".repeat(64) });
+
+    await expect(
+      runs.countRecentRuns(
+        submission.clientHash,
+        new Date("2026-08-21T09:00:00.001Z"),
+      ),
+    ).resolves.toBe(10);
+
+    clock.advance(60 * 60_000 + 1);
+    await expect(
+      runs.countRecentRuns(
+        submission.clientHash,
+        new Date("2026-08-21T10:00:00.001Z"),
+      ),
+    ).resolves.toBe(0);
+  });
+
   it.each([
     { ...submission, transcript: "" },
     { ...submission, transcript: "x".repeat(65_001) },

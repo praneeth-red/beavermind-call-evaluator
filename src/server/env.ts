@@ -10,3 +10,11 @@ export function getServerEnv() {
 
   return { supabaseUrl, supabaseServiceRoleKey };
 }
+
+export function getClientHashSalt() {
+  const clientHashSalt = process.env.CLIENT_HASH_SALT;
+  if (!clientHashSalt) {
+    throw new Error("Client hash salt is not configured");
+  }
+  return clientHashSalt;
+}

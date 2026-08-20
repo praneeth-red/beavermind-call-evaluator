@@ -43,6 +43,25 @@ class RunRepository {
     return this.memory?.size ?? 0;
   }
 
+  async countRecentRuns(clientHash: string, since: Date): Promise<number> {
+    if (this.memory) {
+      return [...this.memory.values()].filter(
+        (run) =>
+          run.clientHash === clientHash &&
+          Date.parse(run.createdAt) >= since.getTime(),
+      ).length;
+    }
+
+    const supabase = await getSupabase();
+    const { count, error } = await supabase
+      .from("runs")
+      .select("id", { count: "exact", head: true })
+      .eq("client_hash", clientHash)
+      .gte("created_at", since.toISOString());
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async createRun(input: CreateRunInput): Promise<RunRecord> {
     if (
       !["kickoff", "coaching"].includes(input.callType) ||
@@ -279,6 +298,8 @@ const productionRepository = new RunRepository();
 
 export const createRun = (input: CreateRunInput) =>
   productionRepository.createRun(input);
+export const countRecentRuns = (clientHash: string, since: Date) =>
+  productionRepository.countRecentRuns(clientHash, since);
 export const claimRun = (id: string) => productionRepository.claimRun(id);
 export const completeRun = (id: string, result: EvaluationResult) =>
   productionRepository.completeRun(id, result);
