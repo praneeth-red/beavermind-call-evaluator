@@ -1,0 +1,101 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+import { describe, expect, it } from "vitest";
+
+import type { EvaluationResult } from "../src/domain/types";
+import { Report } from "./report";
+
+function result(): EvaluationResult {
+  return {
+    coachSpeaker: "Coach",
+    scoringSignals: {
+      diagnosticsApplicable: {
+        value: true,
+        reasoning: "The coach explored the client's baseline.",
+        evidence: [{ turn: 2, quote: "What is getting in the way?" }],
+      },
+      movementCoachingOccurred: {
+        value: true,
+        reasoning: "The coach connected movement to the goal.",
+        evidence: [{ turn: 4, quote: "Let's make the next action smaller." }],
+      },
+      nextCallBookedLive: {
+        value: false,
+        reasoning: "No booking was completed live.",
+        evidence: [],
+      },
+    },
+    oneThing: {
+      improvement: "Close with a live booking.",
+      explanation: "A confirmed next call removes follow-up uncertainty.",
+      projectedScore: 84,
+    },
+    brief:
+      "The call was focused, but <img src=x onerror=alert('private')> must render as text.",
+    redFlags: [
+      {
+        risk: "The next call is not secured.",
+        explanation: "Momentum may be lost after the session.",
+        evidence: [{ turn: 8, quote: "Send me the link later." }],
+      },
+    ],
+    rawScore: 76,
+    activeMaximum: 100,
+    normalizedScore: 76,
+    grade: "INCONSISTENT",
+    dimensions: Array.from({ length: 12 }, (_, index) => ({
+      dimension: index + 1,
+      name: `Observed behavior ${index + 1}`,
+      score: index === 3 ? null : index + 1,
+      maximum: index === 3 ? 0 : 12,
+      active: index !== 3,
+      band: index === 3 ? "N/A" : "Developing",
+      reasoning: `Reasoning for dimension ${index + 1}.`,
+      evidence:
+        index === 0
+          ? [{ turn: 2, quote: "What is getting in the way?" }]
+          : [],
+      missingBehavior: `Missing behavior ${index + 1}.`,
+      quickFix: `Quick fix ${index + 1}.`,
+    })),
+    appliedDimensionCaps: [
+      { dimension: 10, maximum: 0, reason: "Next call was not booked live." },
+    ],
+    appliedTotalCaps: [
+      { maximum: 80, reason: "Estimated coach word share exceeded 70%." },
+    ],
+    assumptions: [
+      "Coach word share is used as a talk-time estimate.",
+      "Inactive dimensions contribute neither points nor maximum points.",
+    ],
+  };
+}
+
+describe("Report", () => {
+  it("server-renders the complete evidence-based report as escaped text", () => {
+    const html = renderToStaticMarkup(
+      createElement(Report, {
+        result: result(),
+        runId: "9f6fd561-7d5d-45bf-a1c9-88ecb891db5e",
+      }),
+    );
+
+    expect(html).toContain(">76<");
+    expect(html).toContain("INCONSISTENT");
+    expect(html).toContain("Close with a live booking.");
+    expect(html).toContain("Projected score: 84");
+    expect(html).toContain("The call was focused");
+    expect(html).toContain("The next call is not secured.");
+    expect(html.match(/<details/g)).toHaveLength(12);
+    expect(html).toContain("Observed behavior 12");
+    expect(html).toContain("Turn 2");
+    expect(html).toContain("What is getting in the way?");
+    expect(html).toContain("Missing behavior 1.");
+    expect(html).toContain("Quick fix 1.");
+    expect(html).toContain("Next call was not booked live.");
+    expect(html).toContain("Coach word share is used as a talk-time estimate.");
+    expect(html).toContain('href="/api/runs/9f6fd561-7d5d-45bf-a1c9-88ecb891db5e/pdf"');
+    expect(html).toContain("&lt;img src=x onerror=alert(&#x27;private&#x27;)&gt;");
+    expect(html).not.toContain("<img src=x");
+  });
+});

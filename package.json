@@ -1,0 +1,32 @@
+{
+  "name": "beavermind-call-evaluator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "tsc --noEmit",
+    "start": "next start",
+    "test": "vitest run",
+    "test:e2e": "env -u NO_COLOR playwright test"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "4.6.1",
+    "@supabase/supabase-js": "2.112.3",
+    "ai": "7.0.70",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

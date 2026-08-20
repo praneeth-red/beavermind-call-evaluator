@@ -1,0 +1,12 @@
+.worktrees/
+.superpowers/
+.next/
+node_modules/
+.env*
+!.env.example
+npm-debug.log*
+*.tsbuildinfo
+playwright-report/
+test-results/
+output/pdf/
+.vercel
