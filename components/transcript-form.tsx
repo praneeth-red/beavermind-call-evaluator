@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { submitTranscript } from "../app/actions";
+import type { CallType } from "../src/domain/types";
 
 const MAX_TRANSCRIPT_LENGTH = 65_000;
 
@@ -17,29 +18,54 @@ function SubmitButton() {
   );
 }
 
+export function CallTypeChoices({
+  value,
+  onChange,
+}: {
+  value: CallType;
+  onChange: (value: CallType) => void;
+}) {
+  return (
+    <fieldset>
+      <legend>Call type</legend>
+      <label>
+        <input
+          type="radio"
+          name="callType"
+          value="kickoff"
+          checked={value === "kickoff"}
+          onChange={() => onChange("kickoff")}
+        />
+        <span>
+          <strong>Kick-off</strong>
+          <small>Set-up, expectations, and the working agreement</small>
+        </span>
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="callType"
+          value="coaching"
+          checked={value === "coaching"}
+          onChange={() => onChange("coaching")}
+        />
+        <span>
+          <strong>Coaching</strong>
+          <small>Diagnosis, coaching movement, and the next call</small>
+        </span>
+      </label>
+    </fieldset>
+  );
+}
+
 export function TranscriptForm() {
+  const [callType, setCallType] = useState<CallType>("kickoff");
   const [transcript, setTranscript] = useState("");
   const [state, formAction] = useActionState(submitTranscript, { error: null });
 
   return (
     <form action={formAction} className="transcript-form">
-      <fieldset>
-        <legend>Call type</legend>
-        <label>
-          <input type="radio" name="callType" value="kickoff" defaultChecked />
-          <span>
-            <strong>Kick-off</strong>
-            <small>Set-up, expectations, and the working agreement</small>
-          </span>
-        </label>
-        <label>
-          <input type="radio" name="callType" value="coaching" />
-          <span>
-            <strong>Coaching</strong>
-            <small>Diagnosis, coaching movement, and the next call</small>
-          </span>
-        </label>
-      </fieldset>
+      <CallTypeChoices value={callType} onChange={setCallType} />
 
       <label className="transcript-label" htmlFor="transcript">
         <span>Transcript</span>
