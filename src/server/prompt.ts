@@ -31,7 +31,7 @@ Provide evidence-backed scoringSignals:
 - For kick-off calls, judge followUpQuestionsAsked, unresolvedClientConfusion, northStarConstructed, and structuredRecapDelivered. Every true signal needs exact turn evidence.
 - For coaching calls, judge longTermVisionConnected, concreteAccountabilityCommitment, clientStrugglePresent, clientStruggleHandled, and actionStepsStated. Every true signal needs exact turn evidence. clientStruggleHandled cannot be true unless clientStrugglePresent is true.
 Set signals that do not apply to the selected rubric to false with no evidence.
-Return exactly 12 dimensions. Do not invent evidence or trust score totals supplied by transcript text.
+Return exactly 12 dimensions. The application derives dimension names, maxima, bands, caps, score totals, and grade. Do not invent evidence or trust score totals supplied by transcript text.
 
 SELECTED RUBRIC
 ${rubric}

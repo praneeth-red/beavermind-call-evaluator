@@ -2,7 +2,10 @@ import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 
-import { evaluationCandidateSchema, type EvaluationCandidate } from "../domain/evaluation-schema";
+import {
+  modelEvaluationCandidateSchema,
+  type ModelEvaluationCandidate,
+} from "../domain/evaluation-schema";
 import { rubricConfigs } from "../domain/rubric-config";
 import type { CallType } from "../domain/types";
 import { evaluatorTestModeEnabled } from "./test-mode";
@@ -17,11 +20,11 @@ export async function requestCandidate(
     ? "coaching"
     : "kickoff";
 
-  let output: EvaluationCandidate;
+  let output: ModelEvaluationCandidate;
   try {
     output = (await generateText({
       model: "openai/gpt-5.6-luna",
-      output: Output.object({ schema: evaluationCandidateSchema }),
+      output: Output.object({ schema: modelEvaluationCandidateSchema }),
       prompt: repair
         ? `${prompt}\n\nVALIDATION REPAIR\n${repair}\nReturn the full corrected object.`
         : prompt,
@@ -34,7 +37,7 @@ export async function requestCandidate(
       const candidate: unknown = JSON.parse(
         error.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""),
       );
-      const parsed = evaluationCandidateSchema.safeParse(candidate);
+      const parsed = modelEvaluationCandidateSchema.safeParse(candidate);
       if (!parsed.success) return candidate;
       output = parsed.data;
     } catch {

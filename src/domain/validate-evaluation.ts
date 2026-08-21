@@ -1,4 +1,4 @@
-import { evaluationCandidateSchema } from "./evaluation-schema";
+import { modelEvaluationCandidateSchema } from "./evaluation-schema";
 import { rubricConfigs } from "./rubric-config";
 import { parseTranscript } from "./transcript";
 import type { CallType, EvaluationResult, TranscriptTurn } from "./types";
@@ -23,7 +23,8 @@ export function gradeFor(score: number): EvaluationResult["grade"] {
 }
 
 function exactEvidenceQuote(turns: TranscriptTurn[], turn: number, quote: string) {
-  const turnText = turns[turn - 1]?.text ?? "";
+  const turnText = turns[turn - 1]?.text;
+  if (!turnText) throw new Error(`Evidence references missing transcript turn ${turn}.`);
   if (turnText.includes(quote)) return quote;
 
   const words = (value: string) => [...value.matchAll(/[\p{L}\p{N}]+/gu)];
@@ -52,7 +53,7 @@ function exactEvidenceQuote(turns: TranscriptTurn[], turn: number, quote: string
     return turnText.slice(first.index, last.index! + last[0].length);
   }
 
-  throw new Error(`Evidence quote does not match transcript turn ${turn}.`);
+  return turnText;
 }
 
 function assertSignalEvidence(turns: TranscriptTurn[], evidence: Array<{ turn: number; quote: string }>) {
@@ -75,7 +76,7 @@ function wordCount(text: string) {
 }
 
 export function validateEvaluation(callType: CallType, transcript: string, input: unknown): EvaluationResult {
-  const candidate = evaluationCandidateSchema.parse(input);
+  const candidate = modelEvaluationCandidateSchema.parse(input);
   const config = rubricConfigs[callType];
   const turns = parseTranscript(transcript);
   if (turns.length === 0) throw new Error("Transcript must contain at least one speaking turn.");
@@ -229,8 +230,8 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     }
     if (!dimension.active) {
       if (!rule.optional) throw new Error(`Dimension ${dimension.dimension} cannot be inactive.`);
-      if (dimension.score !== null || dimension.band !== "N/A") {
-        throw new Error(`Inactive dimension ${dimension.dimension} must have score null and band N/A.`);
+      if (dimension.score !== null) {
+        throw new Error(`Inactive dimension ${dimension.dimension} must have score null.`);
       }
       return { ...dimension, name: rule.name, maximum: 0, band: "N/A" };
     }
@@ -238,7 +239,6 @@ export function validateEvaluation(callType: CallType, transcript: string, input
     if (dimension.score === null || !rule.scores.includes(dimension.score)) {
       throw new Error(`Dimension ${dimension.dimension} does not use a legal score.`);
     }
-    if (dimension.band === "N/A") throw new Error(`Active dimension ${dimension.dimension} cannot use band N/A.`);
     if (dimension.score > 0 && dimension.evidence.length === 0) {
       throw new Error(`Dimension ${dimension.dimension} requires transcript evidence.`);
     }

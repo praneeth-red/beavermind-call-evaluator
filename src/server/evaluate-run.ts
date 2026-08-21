@@ -6,7 +6,7 @@ import { claimRun, completeRun, failRun } from "./runs";
 const PUBLIC_FAILURE =
   "The evaluation could not be completed. Please try again.";
 const REPAIR_INSTRUCTION =
-  "Correct the prior result using only the rubric and transcript. Return exactly 12 dimensions with legal scores, exact turn evidence, consistent scoring signals and caps, and application-verifiable arithmetic fields. Do not repeat or discuss the prior result.";
+  "Correct the prior result using only the rubric and transcript. Return exactly 12 dimensions with legal scores, exact turn evidence, and consistent scoring signals. Do not return derived dimension names, maxima, bands, caps, score totals, or grades; the application supplies them. Do not repeat or discuss the prior result.";
 
 function repairInstruction(error: unknown) {
   const reason = error instanceof Error && !("issues" in error)

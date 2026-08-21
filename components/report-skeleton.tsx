@@ -14,15 +14,17 @@ export function ReportSkeleton({
   return (
     <main className="report-shell report-skeleton" aria-busy="true">
       <header className="skeleton-status" aria-live="polite">
-        <div>
+        <div className="skeleton-score-lockup">
           <p className="eyebrow">{eyebrow}</p>
+          <div className="skeleton-score" aria-hidden="true">
+            <span />
+            <div><i /><i /></div>
+          </div>
+        </div>
+        <div className="skeleton-status-copy">
           <h1>{title}</h1>
           {description ? <p>{description}</p> : null}
           {note ? <p className="status-note">{note}</p> : null}
-        </div>
-        <div className="skeleton-score" aria-hidden="true">
-          <span />
-          <div><i /><i /></div>
         </div>
       </header>
 

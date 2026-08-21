@@ -2,6 +2,7 @@ import {
   Children,
   createElement,
   isValidElement,
+  type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -13,7 +14,12 @@ vi.mock("../app/actions", () => ({
   submitTranscript: vi.fn(),
 }));
 
-import { CallTypeChoices } from "./transcript-form";
+import * as formComponents from "./transcript-form";
+
+const { CallTypeChoices } = formComponents;
+const ExampleChoices = (formComponents as typeof formComponents & {
+  ExampleChoices?: (props: { onSelect: (value: string) => void }) => ReactElement;
+}).ExampleChoices;
 
 function radioInputs(node: ReactNode): ReactElement<InputHTMLAttributes<HTMLInputElement>>[] {
   const inputs: ReactElement<InputHTMLAttributes<HTMLInputElement>>[] = [];
@@ -27,6 +33,20 @@ function radioInputs(node: ReactNode): ReactElement<InputHTMLAttributes<HTMLInpu
   });
 
   return inputs;
+}
+
+function buttons(node: ReactNode): ReactElement<ButtonHTMLAttributes<HTMLButtonElement>>[] {
+  const matches: ReactElement<ButtonHTMLAttributes<HTMLButtonElement>>[] = [];
+
+  Children.forEach(node, (child) => {
+    if (!isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(child)) return;
+    if (child.type === "button") {
+      matches.push(child as ReactElement<ButtonHTMLAttributes<HTMLButtonElement>>);
+    }
+    matches.push(...buttons(child.props.children as ReactNode));
+  });
+
+  return matches;
 }
 
 describe("CallTypeChoices", () => {
@@ -52,5 +72,34 @@ describe("CallTypeChoices", () => {
     );
 
     expect(selections).toEqual(["kickoff", "coaching"]);
+  });
+});
+
+describe("ExampleChoices", () => {
+  it("dispatches each exact example value from one direct button click", () => {
+    expect(ExampleChoices).toBeTypeOf("function");
+    if (!ExampleChoices) return;
+
+    const selections: string[] = [];
+    const choices = ExampleChoices({ onSelect: (value) => selections.push(value) });
+    const choiceButtons = buttons(choices);
+
+    expect(choiceButtons).toHaveLength(4);
+    expect(choiceButtons.map(({ props }) => props.value)).toEqual([
+      "kickoff-01",
+      "kickoff-02",
+      "coaching-01",
+      "coaching-02",
+    ]);
+    expect(choiceButtons.every(({ props }) => props.type === "button")).toBe(true);
+
+    for (const button of choiceButtons) button.props.onClick?.({} as never);
+
+    expect(selections).toEqual([
+      "kickoff-01",
+      "kickoff-02",
+      "coaching-01",
+      "coaching-02",
+    ]);
   });
 });
