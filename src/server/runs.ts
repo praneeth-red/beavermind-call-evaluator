@@ -372,8 +372,6 @@ async function withRepository<T>(
   }
 }
 
-export const createRun = (input: CreateRunInput) =>
-  withRepository((repository) => repository.createRun(input));
 export const createLimitedRun = (
   input: CreateRunInput,
   cutoff: Date,

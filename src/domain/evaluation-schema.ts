@@ -104,8 +104,6 @@ export const evaluationCandidateSchema = z
   })
   .strict();
 
-export type EvaluationCandidate = z.infer<typeof evaluationCandidateSchema>;
-
 export const modelEvaluationCandidateSchema = evaluationCandidateSchema
   .omit({
     rawScore: true,

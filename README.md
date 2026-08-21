@@ -12,8 +12,8 @@ The application, isolated Supabase database, and real model path are live. A sup
 
 - Next.js 16 renders the submission form, status page, HTML report, and PDF route.
 - Supabase stores one `runs` row per submission. Row-level security is enabled with no browser policies; only server-side service-role calls can access rows.
-- Vercel AI Gateway calls `deepseek/deepseek-v4-flash-0731` at `xhigh` reasoning through Fireworks with Vercel OIDC. No provider or AI Gateway API key is used.
-- The browser receives only public run state. It never receives the transcript, client hash, provider response, raw error, or database credential.
+- Vercel AI Gateway calls the exact `openai/gpt-5.6-luna` model with low reasoning and Vercel OIDC. The request has no fallback model, provider pin, provider key, or AI Gateway API key.
+- The polling endpoint exposes only public run state. Once a run completes, its shareable report page receives the transcript so readers can open exact cited turns. The browser never receives the client hash, provider response, raw error, or database credential.
 
 The lifecycle is deliberately small:
 
@@ -77,7 +77,7 @@ npm run build
 npm run test:e2e
 ```
 
-Unit and integration tests cover fixture integrity, scoring and evidence rules, run transitions, atomic submission limits, safe terminal failure, the DeepSeek/Fireworks worker boundary, report markup, and real PDF bytes. Playwright starts a real local Next.js process, submits all four exact pinned transcripts, and covers permanent URLs, refresh, close-tab background completion, all 12 dimensions, both coaching traps, mobile overflow, and PDF download.
+Unit and integration tests cover fixture integrity, scoring and evidence rules, run transitions, atomic submission limits, safe terminal failure, the exact Luna low-reasoning worker boundary, report markup, and real PDF bytes. Playwright starts a real local Next.js process, submits all four exact pinned transcripts, and covers permanent URLs, refresh, close-tab background completion, all 12 dimensions, both coaching traps, mobile overflow, and PDF download.
 
 `npm run test:e2e` sets `EVALUATOR_TEST_MODE=1`. Its deterministic adapter derives structured signals from observable numbered turns in the pinned fixtures, then sends the candidate through the real evidence, cap, label, arithmetic, storage, HTML, and PDF path. This proves the pipeline and validator. It does not prove live-model semantic accuracy. Runs use a per-suite file under the operating system temp directory, removed before and after the suite. Next.js startup and server runtime both throw if test mode is enabled in production. Test mode is never a deployment setting.
 
@@ -86,7 +86,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 - RLS is enabled and no anon or authenticated policies expose `runs`.
 - The Supabase service-role key, client-hash salt, and OIDC token remain server-side.
 - Anonymous limits use an HMAC-SHA-256 client hash; the source address is never stored.
-- Run UUIDs are unguessable share links, not authentication. Anyone with a run URL can read that report.
+- Run UUIDs are unguessable share links, not authentication. Anyone with a run URL can read that report and its transcript evidence.
 - Report and transcript-derived content render as React text, never injected HTML.
 - Run pages are `noindex`; status and PDF responses use `no-store`.
 - Public errors are fixed, single-line messages. Server logs contain only the sanitized failure category (`claim`, `provider`, `validation`, or `persistence`) and a numeric HTTP-like status when one is safely available. Raw model/provider text, transcript content, secrets, and account identifiers are neither exposed nor logged.
@@ -107,7 +107,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 - The form has no low visible character cap. The server rejects input above 500,000 characters as an anonymous-service safety boundary.
 - Browser textarea line endings are normalized before validation. The largest fixture is 64,801 bytes and 64,795 browser characters.
 - One invalid model result receives one repair request; a second invalid result fails safely.
-- Queued or processing work older than 12 minutes becomes a terminal timeout failure, allowing two max-reasoning attempts to finish.
+- Queued or processing work older than 12 minutes becomes a terminal timeout failure, allowing an initial request and one validation-repair request to finish.
 - Word share is only an estimate of talk time.
 - A run URL is durable and shareable but not access-controlled.
 
