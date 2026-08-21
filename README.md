@@ -13,7 +13,7 @@ The application, isolated Supabase database, and real model path are live. A sup
 - Next.js 16 renders the submission form, status page, HTML report, and PDF route.
 - Supabase stores one `runs` row per submission. Row-level security is enabled with no browser policies; only server-side service-role calls can access rows.
 - Vercel AI Gateway calls the exact `openai/gpt-5.6-luna` model with low reasoning and Vercel OIDC. The request has no fallback model, provider pin, provider key, or AI Gateway API key.
-- The browser receives only public run state. It never receives the transcript, client hash, provider response, raw error, or database credential.
+- The polling endpoint exposes only public run state. Once a run completes, its shareable report page receives the transcript so readers can open exact cited turns. The browser never receives the client hash, provider response, raw error, or database credential.
 
 The lifecycle is deliberately small:
 
@@ -86,7 +86,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 - RLS is enabled and no anon or authenticated policies expose `runs`.
 - The Supabase service-role key, client-hash salt, and OIDC token remain server-side.
 - Anonymous limits use an HMAC-SHA-256 client hash; the source address is never stored.
-- Run UUIDs are unguessable share links, not authentication. Anyone with a run URL can read that report.
+- Run UUIDs are unguessable share links, not authentication. Anyone with a run URL can read that report and its transcript evidence.
 - Report and transcript-derived content render as React text, never injected HTML.
 - Run pages are `noindex`; status and PDF responses use `no-store`.
 - Public errors are fixed, single-line messages. Server logs contain only the sanitized failure category (`claim`, `provider`, `validation`, or `persistence`) and a numeric HTTP-like status when one is safely available. Raw model/provider text, transcript content, secrets, and account identifiers are neither exposed nor logged.
