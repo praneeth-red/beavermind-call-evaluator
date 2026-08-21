@@ -1,14 +1,47 @@
-import type { Evidence, EvaluationResult } from "../src/domain/types";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type {
+  Evidence,
+  EvaluationResult,
+  TranscriptTurn,
+} from "../src/domain/types";
 import { ScoreRail } from "./score-rail";
 
-function EvidenceList({ evidence }: { evidence: Evidence[] }) {
+type SelectEvidence = (turn: number, trigger: HTMLButtonElement) => void;
+
+export function citedEvidenceTurns(result: EvaluationResult): number[] {
+  return [
+    ...new Set([
+      ...result.dimensions.flatMap((dimension) =>
+        dimension.evidence.map((evidence) => evidence.turn)),
+      ...result.redFlags.flatMap((flag) =>
+        flag.evidence.map((evidence) => evidence.turn)),
+    ]),
+  ].sort((left, right) => left - right);
+}
+
+function EvidenceList({
+  evidence,
+  onSelect,
+}: {
+  evidence: Evidence[];
+  onSelect: SelectEvidence;
+}) {
   if (evidence.length === 0) return <p className="empty-evidence">No supporting turn was scored.</p>;
 
   return (
     <ul className="evidence-list">
       {evidence.map((item, index) => (
         <li key={`${item.turn}-${index}`}>
-          <span>Turn {item.turn}</span>
+          <button
+            type="button"
+            className="evidence-turn"
+            onClick={(event) => onSelect(item.turn, event.currentTarget)}
+          >
+            Turn {item.turn}
+          </button>
           <q>{item.quote}</q>
         </li>
       ))}
@@ -16,16 +49,195 @@ function EvidenceList({ evidence }: { evidence: Evidence[] }) {
   );
 }
 
+function TranscriptDrawer({
+  turns,
+  evidenceTurns,
+  selectedTurn,
+  onSelect,
+  onClose,
+}: {
+  turns: TranscriptTurn[];
+  evidenceTurns: number[];
+  selectedTurn: number | null;
+  onSelect: (turn: number) => void;
+  onClose: () => void;
+}) {
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const turnRefs = useRef(new Map<number, HTMLLIElement>());
+  const [overlay, setOverlay] = useState(false);
+  const open = selectedTurn !== null;
+  const selectedIndex = selectedTurn === null
+    ? -1
+    : evidenceTurns.indexOf(selectedTurn);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 899px)");
+    const update = () => setOverlay(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    if (overlay) document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !overlay) return;
+
+      const focusable = drawerRef.current?.querySelectorAll<HTMLButtonElement>(
+        "button:not(:disabled)",
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      if (overlay) document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose, overlay]);
+
+  useEffect(() => {
+    if (selectedTurn === null) return;
+    const scroller = scrollRef.current;
+    const selected = turnRefs.current.get(selectedTurn);
+    if (!scroller || !selected) return;
+    scroller.scrollTo({
+      top: Math.max(
+        0,
+        selected.offsetTop - (scroller.clientHeight - selected.offsetHeight) / 2,
+      ),
+    });
+  }, [selectedTurn]);
+
+  return (
+    <div
+      className="transcript-drawer-layer"
+      data-open={open}
+      aria-hidden={!open}
+      inert={!open}
+    >
+      <button
+        type="button"
+        className="transcript-drawer-backdrop"
+        aria-label="Close transcript evidence"
+        tabIndex={-1}
+        onClick={onClose}
+      />
+      <aside
+        ref={drawerRef}
+        className="transcript-drawer"
+        role="dialog"
+        aria-modal={overlay || undefined}
+        aria-labelledby="transcript-drawer-heading"
+      >
+        <header>
+          <div>
+            <p className="eyebrow">Transcript evidence</p>
+            <h2 id="transcript-drawer-heading">
+              {selectedTurn === null ? "Full call" : `Turn ${selectedTurn}`}
+            </h2>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            className="transcript-drawer-close"
+            aria-label="Close transcript evidence"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
+
+        <nav className="transcript-drawer-nav" aria-label="Evidence turn navigation">
+          <button
+            type="button"
+            disabled={selectedIndex <= 0}
+            onClick={() => onSelect(evidenceTurns[selectedIndex - 1])}
+          >
+            Previous evidence
+          </button>
+          <span>{selectedIndex < 0 ? 0 : selectedIndex + 1} of {evidenceTurns.length}</span>
+          <button
+            type="button"
+            disabled={selectedIndex < 0 || selectedIndex >= evidenceTurns.length - 1}
+            onClick={() => onSelect(evidenceTurns[selectedIndex + 1])}
+          >
+            Next evidence
+          </button>
+        </nav>
+
+        <div ref={scrollRef} className="transcript-drawer-scroll">
+          <ol>
+            {turns.map((turn) => (
+              <li
+                key={turn.number}
+                ref={(node) => {
+                  if (node) turnRefs.current.set(turn.number, node);
+                  else turnRefs.current.delete(turn.number);
+                }}
+                data-selected={turn.number === selectedTurn}
+              >
+                <p>
+                  <span>Turn {turn.number}</span>
+                  <strong>{turn.speaker}</strong>
+                </p>
+                <p>{turn.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export function Report({
   result,
   runId,
+  turns,
 }: {
   result: EvaluationResult;
   runId: string;
+  turns: TranscriptTurn[];
 }) {
+  const [selectedTurn, setSelectedTurn] = useState<number | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const evidenceTurns = citedEvidenceTurns(result);
+
+  const selectEvidence = useCallback((turn: number, trigger: HTMLButtonElement) => {
+    triggerRef.current = trigger;
+    setSelectedTurn(turn);
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setSelectedTurn(null);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  }, []);
+
   return (
-    <main className="report-shell">
-      <header className="report-header">
+    <div className="report-workspace" data-drawer-open={selectedTurn !== null}>
+      <main className="report-shell">
+        <header className="report-header">
         <div>
           <p className="eyebrow">Call evaluation</p>
           <div className="score-lockup">
@@ -88,7 +300,7 @@ export function Report({
                 </div>
                 <div>
                   <h3>Exact turn evidence</h3>
-                  <EvidenceList evidence={dimension.evidence} />
+                  <EvidenceList evidence={dimension.evidence} onSelect={selectEvidence} />
                 </div>
                 <div className="dimension-actions">
                   <div>
@@ -119,12 +331,21 @@ export function Report({
               <li key={`${flag.risk}-${index}`}>
                 <h3>{flag.risk}</h3>
                 <p>{flag.explanation}</p>
-                <EvidenceList evidence={flag.evidence} />
+                <EvidenceList evidence={flag.evidence} onSelect={selectEvidence} />
               </li>
             ))}
           </ul>
         )}
-      </section>
-    </main>
+        </section>
+      </main>
+
+      <TranscriptDrawer
+        turns={turns}
+        evidenceTurns={evidenceTurns}
+        selectedTurn={selectedTurn}
+        onSelect={setSelectedTurn}
+        onClose={closeDrawer}
+      />
+    </div>
   );
 }

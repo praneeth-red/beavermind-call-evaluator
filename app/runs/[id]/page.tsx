@@ -4,7 +4,11 @@ import { z } from "zod";
 
 import { Report } from "../../../components/report";
 import { RunStatus } from "../../../components/run-status";
-import { getPublicRun } from "../../../src/server/runs";
+import { parseTranscript } from "../../../src/domain/transcript";
+import {
+  getCompletedRunTranscript,
+  getPublicRun,
+} from "../../../src/server/runs";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -22,7 +26,15 @@ export default async function RunPage({ params }: RunPageProps) {
   if (!run) notFound();
 
   if (run.status === "completed" && run.result) {
-    return <Report result={run.result} runId={id} />;
+    const transcript = await getCompletedRunTranscript(id);
+    if (!transcript) notFound();
+    return (
+      <Report
+        result={run.result}
+        runId={id}
+        turns={parseTranscript(transcript)}
+      />
+    );
   }
 
   return (

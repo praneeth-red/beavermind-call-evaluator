@@ -177,6 +177,11 @@ class RunRepository {
     return publicRun;
   }
 
+  async getCompletedRunTranscript(id: string): Promise<string | null> {
+    const run = await this.readRun(id);
+    return run?.status === "completed" ? run.transcript : null;
+  }
+
   private async setFailed(id: string, publicError: string): Promise<boolean> {
     if (this.memory) {
       const run = this.memory.get(id);
@@ -385,6 +390,8 @@ export const failRun = (id: string, publicError: string) =>
   withRepository((repository) => repository.failRun(id, publicError));
 export const getPublicRun = (id: string) =>
   withRepository((repository) => repository.getPublicRun(id));
+export const getCompletedRunTranscript = (id: string) =>
+  withRepository((repository) => repository.getCompletedRunTranscript(id));
 
 export function createInMemoryRunRepository(
   options: InMemoryRepositoryOptions = {},

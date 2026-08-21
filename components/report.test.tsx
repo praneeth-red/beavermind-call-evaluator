@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
-import type { EvaluationResult } from "../src/domain/types";
-import { Report } from "./report";
+import type { EvaluationResult, TranscriptTurn } from "../src/domain/types";
+import { Report, citedEvidenceTurns } from "./report";
 
 function result(): EvaluationResult {
   return {
@@ -80,12 +80,27 @@ function result(): EvaluationResult {
   };
 }
 
+const turns: TranscriptTurn[] = Array.from({ length: 8 }, (_, index) => ({
+  number: index + 1,
+  speaker: index % 2 === 0 ? "Coach" : "Client",
+  text: `Full transcript text for turn ${index + 1}.`,
+}));
+
 describe("Report", () => {
+  it("orders unique evidence turns by transcript chronology", () => {
+    const fixture = result();
+    fixture.dimensions[1].evidence = [{ turn: 8, quote: "Later citation." }];
+    fixture.dimensions[2].evidence = [{ turn: 1, quote: "Earlier citation." }];
+
+    expect(citedEvidenceTurns(fixture)).toEqual([1, 2, 8]);
+  });
+
   it("server-renders the complete evidence-based report as escaped text", () => {
     const html = renderToStaticMarkup(
       createElement(Report, {
         result: result(),
         runId: "9f6fd561-7d5d-45bf-a1c9-88ecb891db5e",
+        turns,
       }),
     );
 
@@ -101,6 +116,17 @@ describe("Report", () => {
     expect(html).toContain("What is getting in the way?");
     expect(html).toContain("Missing behavior 1.");
     expect(html).toContain("Quick fix 1.");
+    expect(html.match(/class="evidence-turn"/g)).toHaveLength(2);
+    expect(html).toContain('<button type="button" class="evidence-turn">Turn 2</button>');
+    expect(html).toContain('<button type="button" class="evidence-turn">Turn 8</button>');
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('<div class="report-workspace" data-drawer-open="false"><main class="report-shell">');
+    expect(html).toContain('</main><div class="transcript-drawer-layer"');
+    expect(html).toContain('data-open="false"');
+    expect(html).not.toContain('hidden=""');
+    expect(html).toContain("Full transcript text for turn 2.");
+    expect(html).toContain("Previous evidence");
+    expect(html).toContain("Next evidence");
     expect(html).not.toContain("Score controls");
     expect(html).not.toContain("Assumptions");
     expect(html.indexOf("Coach brief")).toBeLessThan(

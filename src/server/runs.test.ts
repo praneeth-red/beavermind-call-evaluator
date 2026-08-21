@@ -185,6 +185,23 @@ describe("run lifecycle", () => {
     });
   });
 
+  it("returns transcript evidence only after a run completes", async () => {
+    const runs = createInMemoryRunRepository();
+    const created = await runs.createRun(submission);
+
+    await expect(runs.getCompletedRunTranscript(created.id)).resolves.toBeNull();
+    await runs.claimRun(created.id);
+    await expect(runs.getCompletedRunTranscript(created.id)).resolves.toBeNull();
+    await runs.completeRun(created.id, evaluationResult());
+
+    await expect(runs.getCompletedRunTranscript(created.id)).resolves.toBe(
+      submission.transcript,
+    );
+    await expect(runs.getPublicRun(created.id)).resolves.not.toHaveProperty(
+      "transcript",
+    );
+  });
+
   it("preserves canonical caps and assumptions across complete and read", async () => {
     const runs = createInMemoryRunRepository();
     const created = await runs.createRun(submission);
