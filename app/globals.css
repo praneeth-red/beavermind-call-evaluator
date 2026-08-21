@@ -487,7 +487,7 @@ button,
 }
 
 .report-skeleton::before {
-  animation: skeleton-sweep 1.8s linear infinite;
+  animation: skeleton-sweep 1.8s ease-in-out infinite alternate;
   background: linear-gradient(90deg, transparent, var(--cobalt), transparent);
   content: "";
   height: 3px;
@@ -559,7 +559,7 @@ button,
 .skeleton-dimension i,
 .skeleton-dimension b,
 .skeleton-line {
-  animation: skeleton-shimmer 1.4s linear infinite;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite alternate;
   background: linear-gradient(
     90deg,
     var(--skeleton-base, #dfe4ec) 0%,
