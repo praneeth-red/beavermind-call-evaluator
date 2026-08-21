@@ -19,7 +19,7 @@ export async function requestCandidate(
     prompt: repair
       ? `${prompt}\n\nVALIDATION REPAIR\n${repair}\nReturn the full corrected object.`
       : prompt,
-    reasoning: "high",
+    reasoning: "xhigh",
     maxOutputTokens: 32_000,
   });
 
