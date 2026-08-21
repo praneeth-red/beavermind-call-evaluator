@@ -17,11 +17,11 @@ const EXAMPLES = [
   callType: CallType;
 }[];
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" disabled={pending}>
+    <button type="submit" disabled={disabled || pending}>
       {pending ? "Starting…" : "Evaluate call"}
     </button>
   );
@@ -35,38 +35,34 @@ export function CallTypeChoices({
   value,
   onChange,
 }: {
-  value: CallType;
-  onChange: (value: CallType) => void;
+  value: CallType | null;
+  onChange: (value: CallType | null) => void;
 }) {
   return (
     <fieldset>
       <legend>Call type</legend>
-      <label>
-        <input
-          type="radio"
-          name="callType"
-          value="kickoff"
-          checked={value === "kickoff"}
-          onChange={() => onChange("kickoff")}
-        />
+      <button
+        type="button"
+        value="kickoff"
+        aria-pressed={value === "kickoff"}
+        onClick={() => onChange(value === "kickoff" ? null : "kickoff")}
+      >
         <span>
           <strong>Kick-off</strong>
           <small>Set-up, expectations, and the working agreement</small>
         </span>
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="callType"
-          value="coaching"
-          checked={value === "coaching"}
-          onChange={() => onChange("coaching")}
-        />
+      </button>
+      <button
+        type="button"
+        value="coaching"
+        aria-pressed={value === "coaching"}
+        onClick={() => onChange(value === "coaching" ? null : "coaching")}
+      >
         <span>
           <strong>Coaching</strong>
           <small>Diagnosis, coaching movement, and the next call</small>
         </span>
-      </label>
+      </button>
     </fieldset>
   );
 }
@@ -75,7 +71,7 @@ export function ExampleChoices({
   onSelect,
   selected,
 }: {
-  onSelect: (value: string) => void;
+  onSelect: (value: string | null) => void;
   selected?: string | null;
 }) {
   return (
@@ -86,7 +82,7 @@ export function ExampleChoices({
           type="button"
           value={example.value}
           aria-pressed={selected === example.value}
-          onClick={() => onSelect(example.value)}
+          onClick={() => onSelect(selected === example.value ? null : example.value)}
         >
           <span>{example.label}</span>
           <small>{example.callType === "kickoff" ? "First-session setup" : "Ongoing coaching"}</small>
@@ -97,7 +93,7 @@ export function ExampleChoices({
 }
 
 export function TranscriptForm() {
-  const [callType, setCallType] = useState<CallType>("kickoff");
+  const [callType, setCallType] = useState<CallType | null>(null);
   const [transcript, setTranscript] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -105,7 +101,15 @@ export function TranscriptForm() {
   const [loadedExample, setLoadedExample] = useState<(typeof EXAMPLES)[number] | null>(null);
   const [state, formAction] = useActionState(submitTranscript, { error: null });
 
-  async function loadExample(value: string) {
+  async function loadExample(value: string | null) {
+    if (value === null) {
+      setInputError(null);
+      setLoadedExample(null);
+      setLoadedFile(null);
+      setTranscript("");
+      return;
+    }
+
     const example = EXAMPLES.find((item) => item.value === value);
     if (!example) return;
 
@@ -165,6 +169,7 @@ export function TranscriptForm() {
     <form action={formAction} className="transcript-form">
       <section className="tool-card">
         <CallTypeChoices value={callType} onChange={setCallType} />
+        <input type="hidden" name="callType" value={callType ?? ""} />
 
         <div className="input-methods">
           <section className="example-method" aria-labelledby="example-heading">
@@ -235,7 +240,7 @@ export function TranscriptForm() {
           <span className="character-count" aria-live="polite">
             {transcript.length.toLocaleString("en-US")} characters
           </span>
-          <SubmitButton />
+          <SubmitButton disabled={!callType || !transcript.trim()} />
         </div>
         {inputError || state.error ? (
           <p className="form-error" role="alert">{inputError || state.error}</p>

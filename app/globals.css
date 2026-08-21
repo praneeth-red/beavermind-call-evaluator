@@ -249,24 +249,22 @@ button,
   width: 100%;
 }
 
-.transcript-form fieldset label {
+.transcript-form fieldset > button {
+  align-items: flex-start;
+  background: var(--sheet);
   border: 2px solid var(--ink);
+  color: var(--ink);
   cursor: pointer;
   display: flex;
   gap: 12px;
   min-height: 70px;
   padding: 14px 16px;
+  text-align: left;
 }
 
-.transcript-form fieldset label:has(input:checked) {
+.transcript-form fieldset > button[aria-pressed="true"] {
   background: var(--soft-cobalt);
   border-color: var(--cobalt);
-}
-
-.transcript-form fieldset input {
-  accent-color: var(--cobalt);
-  flex: 0 0 auto;
-  margin-top: 5px;
 }
 
 .transcript-form fieldset span,

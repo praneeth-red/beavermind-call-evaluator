@@ -34,9 +34,9 @@ async function submit(page: Page, fixture: Fixture) {
     "utf8",
   );
   await page.goto("/");
-  await page.getByRole("radio", {
-    name: fixture.callType === "kickoff" ? /kick-off/i : /coaching/i,
-  }).check();
+  await page.getByRole("button", {
+    name: fixture.callType === "kickoff" ? /kick-off.*set-up/i : /coaching.*diagnosis/i,
+  }).click();
   await transcriptField(page).fill(transcript);
   await page.getByRole("button", { name: "Evaluate call" }).click();
   await expect(page).toHaveURL(/\/runs\/[0-9a-f-]{36}$/);
@@ -56,6 +56,34 @@ async function expectCompletedReport(page: Page) {
   await expect(page.locator(".dimension-list details")).toHaveCount(12);
 }
 
+test("call type and example choices can be cleared", async ({ page }) => {
+  await page.goto("/");
+
+  const kickoff = page.getByRole("button", { name: /kick-off.*set-up/i });
+  const example = page.getByRole("button", { name: /kick-off 01/i });
+  const evaluate = page.getByRole("button", { name: "Evaluate call" });
+
+  await expect(kickoff).toHaveAttribute("aria-pressed", "false");
+  await expect(evaluate).toBeDisabled();
+
+  await kickoff.click();
+  await expect(kickoff).toHaveAttribute("aria-pressed", "true");
+  await kickoff.click();
+  await expect(kickoff).toHaveAttribute("aria-pressed", "false");
+
+  await example.click();
+  await expect(example).toHaveAttribute("aria-pressed", "true");
+  await expect(kickoff).toHaveAttribute("aria-pressed", "true");
+  await expect(transcriptField(page)).not.toHaveValue("");
+  await expect(evaluate).toBeEnabled();
+
+  await example.click();
+  await expect(example).toHaveAttribute("aria-pressed", "false");
+  await expect(transcriptField(page)).toHaveValue("");
+  await expect(kickoff).toHaveAttribute("aria-pressed", "true");
+  await expect(evaluate).toBeDisabled();
+});
+
 test("kickoff-01 completes from the pinned fixture, survives refresh, and downloads PDF", async ({
   page,
 }) => {
@@ -65,9 +93,12 @@ test("kickoff-01 completes from the pinned fixture, survives refresh, and downlo
   );
   await page.goto("/");
   const textarea = transcriptField(page);
-  await page.getByLabel("Load example transcript").selectOption("kickoff-01");
+  await page.getByRole("button", { name: /kick-off 01/i }).click();
   await expect(textarea).toHaveValue(transcript);
-  await expect(page.getByRole("radio", { name: /kick-off/i })).toBeChecked();
+  await expect(page.getByRole("button", { name: /kick-off.*set-up/i })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(textarea).not.toHaveAttribute("maxlength");
   expect(await textarea.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(190);
   const runUrl = await expectRunUrl(page);
@@ -102,6 +133,7 @@ test("kickoff-02 completes from the pinned fixture with all 12 canonical dimensi
   await page.goto("/");
   await page.getByLabel("Upload .txt file").setInputFiles(path);
   await expect(transcriptField(page)).toHaveValue(transcript);
+  await page.getByRole("button", { name: /kick-off.*set-up/i }).click();
   await expectRunUrl(page);
   await expectCompletedReport(page);
   await expect(page.locator(".dimension-list details").first()).toContainText(

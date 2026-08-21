@@ -1,13 +1,10 @@
 import {
   Children,
-  createElement,
   isValidElement,
   type ButtonHTMLAttributes,
-  type InputHTMLAttributes,
   type ReactElement,
   type ReactNode,
 } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../app/actions", () => ({
@@ -18,22 +15,11 @@ import * as formComponents from "./transcript-form";
 
 const { CallTypeChoices } = formComponents;
 const ExampleChoices = (formComponents as typeof formComponents & {
-  ExampleChoices?: (props: { onSelect: (value: string) => void }) => ReactElement;
+  ExampleChoices?: (props: {
+    onSelect: (value: string | null) => void;
+    selected?: string | null;
+  }) => ReactElement;
 }).ExampleChoices;
-
-function radioInputs(node: ReactNode): ReactElement<InputHTMLAttributes<HTMLInputElement>>[] {
-  const inputs: ReactElement<InputHTMLAttributes<HTMLInputElement>>[] = [];
-
-  Children.forEach(node, (child) => {
-    if (!isValidElement<InputHTMLAttributes<HTMLInputElement>>(child)) return;
-    if (child.type === "input" && child.props.type === "radio") {
-      inputs.push(child as ReactElement<InputHTMLAttributes<HTMLInputElement>>);
-    }
-    inputs.push(...radioInputs(child.props.children as ReactNode));
-  });
-
-  return inputs;
-}
 
 function buttons(node: ReactNode): ReactElement<ButtonHTMLAttributes<HTMLButtonElement>>[] {
   const matches: ReactElement<ButtonHTMLAttributes<HTMLButtonElement>>[] = [];
@@ -50,38 +36,34 @@ function buttons(node: ReactNode): ReactElement<ButtonHTMLAttributes<HTMLButtonE
 }
 
 describe("CallTypeChoices", () => {
-  it("renders the selected call type and reports either legal selection", () => {
-    const selections: string[] = [];
+  it("reports null when the selected call type is clicked again", () => {
+    const selections: Array<string | null> = [];
     const choices = CallTypeChoices({
       value: "coaching",
       onChange: (value) => selections.push(value),
     });
-    const html = renderToStaticMarkup(choices);
-    const kickoffMarkup = html.match(/<input[^>]+value="kickoff"[^>]*>/)?.[0];
-    const coachingMarkup = html.match(/<input[^>]+value="coaching"[^>]*>/)?.[0];
+    const choiceButtons = buttons(choices);
 
-    expect(kickoffMarkup).not.toContain("checked");
-    expect(coachingMarkup).toContain("checked");
+    expect(choiceButtons.map(({ props }) => props["aria-pressed"])).toEqual([
+      false,
+      true,
+    ]);
+    for (const button of choiceButtons) button.props.onClick?.({} as never);
 
-    const inputs = radioInputs(choices);
-    inputs.find(({ props }) => props.value === "kickoff")?.props.onChange?.(
-      {} as never,
-    );
-    inputs.find(({ props }) => props.value === "coaching")?.props.onChange?.(
-      {} as never,
-    );
-
-    expect(selections).toEqual(["kickoff", "coaching"]);
+    expect(selections).toEqual(["kickoff", null]);
   });
 });
 
 describe("ExampleChoices", () => {
-  it("dispatches each exact example value from one direct button click", () => {
+  it("reports null when the selected example is clicked again", () => {
     expect(ExampleChoices).toBeTypeOf("function");
     if (!ExampleChoices) return;
 
-    const selections: string[] = [];
-    const choices = ExampleChoices({ onSelect: (value) => selections.push(value) });
+    const selections: Array<string | null> = [];
+    const choices = ExampleChoices({
+      onSelect: (value) => selections.push(value),
+      selected: "kickoff-01",
+    });
     const choiceButtons = buttons(choices);
 
     expect(choiceButtons).toHaveLength(4);
@@ -96,7 +78,7 @@ describe("ExampleChoices", () => {
     for (const button of choiceButtons) button.props.onClick?.({} as never);
 
     expect(selections).toEqual([
-      "kickoff-01",
+      null,
       "kickoff-02",
       "coaching-01",
       "coaching-02",
