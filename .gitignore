@@ -10,3 +10,4 @@ playwright-report/
 test-results/
 output/pdf/
 .vercel
+.env*.local

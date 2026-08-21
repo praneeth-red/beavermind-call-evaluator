@@ -105,3 +105,25 @@ export const evaluationCandidateSchema = z
   .strict();
 
 export type EvaluationCandidate = z.infer<typeof evaluationCandidateSchema>;
+
+export const modelEvaluationCandidateSchema = evaluationCandidateSchema
+  .omit({
+    rawScore: true,
+    activeMaximum: true,
+    normalizedScore: true,
+    grade: true,
+    appliedDimensionCaps: true,
+    appliedTotalCaps: true,
+  })
+  .extend({
+    dimensions: z.array(
+      dimensionSchema.omit({
+        name: true,
+        maximum: true,
+        band: true,
+      }).strip(),
+    ),
+  })
+  .strip();
+
+export type ModelEvaluationCandidate = z.infer<typeof modelEvaluationCandidateSchema>;
