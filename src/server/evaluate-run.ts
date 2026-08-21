@@ -8,6 +8,13 @@ const PUBLIC_FAILURE =
 const REPAIR_INSTRUCTION =
   "Correct the prior result using only the rubric and transcript. Return exactly 12 dimensions with legal scores, exact turn evidence, consistent scoring signals and caps, and application-verifiable arithmetic fields. Do not repeat or discuss the prior result.";
 
+function repairInstruction(error: unknown) {
+  const reason = error instanceof Error && !("issues" in error)
+    ? error.message.slice(0, 500)
+    : "The result does not match the required schema.";
+  return `${REPAIR_INSTRUCTION}\nSpecific validation failure: ${reason}`;
+}
+
 export type EvaluateRunDependencies = {
   claimRun: (id: string) => Promise<RunRecord | null>;
   completeRun: (id: string, result: EvaluationResult) => Promise<void>;
@@ -109,7 +116,7 @@ export async function evaluateRun(
     try {
       repairedCandidate = await dependencies.requestCandidate(
         prompt,
-        REPAIR_INSTRUCTION,
+        repairInstruction(error),
       );
     } catch (providerError) {
       logDiagnostic("provider", safeStatus(providerError));
