@@ -35,14 +35,18 @@ function ScoreGauge({
         <svg viewBox="-14 -14 228 128">
           <defs>
             <linearGradient id="score-gauge-gradient" x1="10" y1="0" x2="190" y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="var(--retention-red)" />
-              <stop offset="60%" stopColor="var(--amber)" />
-              <stop offset="70%" stopColor="var(--score-inconsistent)" />
-              <stop offset="80%" stopColor="var(--cobalt)" />
-              <stop offset="100%" stopColor="var(--positive)" />
+              <stop offset="0%" stopColor="var(--gauge-red)" />
+              <stop offset="22%" stopColor="var(--gauge-orange)" />
+              <stop offset="45%" stopColor="var(--gauge-yellow)" />
+              <stop offset="68%" stopColor="var(--gauge-blue)" />
+              <stop offset="100%" stopColor="var(--gauge-green)" />
             </linearGradient>
+            <filter id="score-gauge-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" />
+            </filter>
           </defs>
           <path className="score-gauge-track" d="M 10 100 A 90 90 0 0 1 190 100" />
+          <path className="score-gauge-glow" d="M 10 100 A 90 90 0 0 1 190 100" filter="url(#score-gauge-soft-glow)" />
           <path className="score-gauge-gradient" d="M 10 100 A 90 90 0 0 1 190 100" />
           <path
             className="score-gauge-selector"

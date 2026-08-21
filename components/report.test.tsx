@@ -99,6 +99,10 @@ describe("Report", () => {
     expect(html).toContain('aria-label="Overall score: 64 out of 100, AT RISK"');
     expect(html).toContain('data-score="64"');
     expect(html).toContain('class="score-gauge-gradient"');
+    expect(html).toContain('class="score-gauge-glow"');
+    expect(html).toContain('offset="22%" stop-color="var(--gauge-orange)"');
+    expect(html).toContain('offset="45%" stop-color="var(--gauge-yellow)"');
+    expect(html).toContain('offset="68%" stop-color="var(--gauge-blue)"');
     expect(html).toContain('class="score-gauge-selector"');
     expect(html).toContain('transform="translate(144.3 5.9) rotate(25.2)"');
     expect(html).not.toContain("score-gauge-needle");

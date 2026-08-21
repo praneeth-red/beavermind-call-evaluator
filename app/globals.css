@@ -723,6 +723,11 @@ button,
 }
 
 .score-gauge {
+  --gauge-blue: #2477ff;
+  --gauge-green: #00c875;
+  --gauge-orange: #ff8a00;
+  --gauge-red: #ff3b4d;
+  --gauge-yellow: #ffd400;
   max-width: 320px;
   width: min(68vw, 320px);
 }
@@ -738,6 +743,7 @@ button,
 }
 
 .score-gauge-track,
+.score-gauge-glow,
 .score-gauge-gradient {
   fill: none;
   stroke-width: 13;
@@ -752,24 +758,31 @@ button,
   stroke-linecap: round;
 }
 
+.score-gauge-glow {
+  opacity: 0.3;
+  stroke: url("#score-gauge-gradient");
+  stroke-linecap: round;
+  stroke-width: 15;
+}
+
 .score-zone-fail {
-  color: var(--retention-red);
+  color: var(--gauge-red);
 }
 
 .score-zone-risk {
-  color: var(--amber);
+  color: var(--gauge-orange);
 }
 
 .score-zone-inconsistent {
-  color: var(--score-inconsistent);
+  color: var(--gauge-yellow);
 }
 
 .score-zone-strong {
-  color: var(--cobalt);
+  color: var(--gauge-blue);
 }
 
 .score-zone-elite {
-  color: var(--positive);
+  color: var(--gauge-green);
 }
 
 .score-gauge-selector {
@@ -823,7 +836,7 @@ button,
 }
 
 .score-gauge-legend::before {
-  background: linear-gradient(90deg, var(--retention-red) 0%, var(--amber) 60%, var(--score-inconsistent) 70%, var(--cobalt) 80%, var(--positive) 100%);
+  background: linear-gradient(90deg, var(--gauge-red) 0%, var(--gauge-orange) 22%, var(--gauge-yellow) 45%, var(--gauge-blue) 68%, var(--gauge-green) 100%);
   content: "";
   grid-column: 1 / -1;
   height: 4px;
