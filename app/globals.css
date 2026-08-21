@@ -721,11 +721,13 @@ button,
 
 .report-header {
   align-items: flex-start;
-  border-bottom: 1px solid var(--line);
+  background: var(--sheet);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
   display: flex;
   gap: 32px;
   justify-content: space-between;
-  padding-bottom: 22px;
+  padding: clamp(18px, 3vw, 26px);
 }
 
 .report-actions {
@@ -733,6 +735,22 @@ button,
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.report-actions .secondary-action {
+  border-width: 3px;
+  box-shadow: 2px 2px 0 var(--cobalt);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.report-actions .secondary-action:hover {
+  box-shadow: 3px 3px 0 var(--cobalt);
+  transform: translate(-1px, -1px);
+}
+
+.report-actions .secondary-action:active {
+  box-shadow: 1px 1px 0 var(--cobalt);
+  transform: translate(1px, 1px);
 }
 
 .score-gauge {
@@ -779,23 +797,23 @@ button,
 }
 
 .score-zone-fail {
-  color: var(--gauge-red);
+  --score-zone-color: var(--gauge-red);
 }
 
 .score-zone-risk {
-  color: var(--gauge-orange);
+  --score-zone-color: var(--gauge-orange);
 }
 
 .score-zone-inconsistent {
-  color: var(--gauge-yellow);
+  --score-zone-color: var(--gauge-yellow);
 }
 
 .score-zone-strong {
-  color: var(--gauge-blue);
+  --score-zone-color: var(--gauge-blue);
 }
 
 .score-zone-elite {
-  color: var(--gauge-green);
+  --score-zone-color: var(--gauge-green);
 }
 
 .score-gauge-selector {
@@ -837,9 +855,10 @@ button,
 
 .score-gauge-legend {
   display: grid;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  gap: 5px;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 800;
+  gap: 4px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   list-style: none;
   margin: 10px 0 0;
@@ -848,22 +867,20 @@ button,
   text-transform: uppercase;
 }
 
-.score-gauge-legend::before {
-  background: linear-gradient(90deg, var(--gauge-red) 0%, var(--gauge-orange) 22%, var(--gauge-yellow) 45%, var(--gauge-blue) 68%, var(--gauge-green) 100%);
-  content: "";
-  grid-column: 1 / -1;
-  height: 4px;
-}
-
 .score-gauge-legend li {
-  padding-top: 0;
+  border-top: 5px solid var(--score-zone-color);
+  color: var(--ink);
+  line-height: 1.15;
+  padding-top: 7px;
 }
 
 .score-gauge-legend small {
   color: var(--graphite);
   display: block;
-  font-size: 0.58rem;
-  margin-top: 1px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  margin-top: 3px;
 }
 
 .one-thing {

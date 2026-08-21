@@ -19,10 +19,11 @@ function ScoreGauge({
   score: number;
   grade: EvaluationResult["grade"];
 }) {
-  const selectorRadians = ((180 - score * 1.8) * Math.PI) / 180;
+  const gaugePosition = score < 60 ? score / 3 : 20 + (score - 60) * 2;
+  const selectorRadians = ((180 - gaugePosition * 1.8) * Math.PI) / 180;
   const selectorX = Math.round((100 + 104 * Math.cos(selectorRadians)) * 10) / 10;
   const selectorY = Math.round((100 - 104 * Math.sin(selectorRadians)) * 10) / 10;
-  const selectorAngle = Math.round((score * 1.8 - 90) * 10) / 10;
+  const selectorAngle = Math.round((gaugePosition * 1.8 - 90) * 10) / 10;
 
   return (
     <div
@@ -36,9 +37,14 @@ function ScoreGauge({
           <defs>
             <linearGradient id="score-gauge-gradient" x1="10" y1="0" x2="190" y2="0" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="var(--gauge-red)" />
+              <stop offset="18%" stopColor="var(--gauge-red)" />
               <stop offset="22%" stopColor="var(--gauge-orange)" />
-              <stop offset="45%" stopColor="var(--gauge-yellow)" />
-              <stop offset="68%" stopColor="var(--gauge-blue)" />
+              <stop offset="38%" stopColor="var(--gauge-orange)" />
+              <stop offset="42%" stopColor="var(--gauge-yellow)" />
+              <stop offset="58%" stopColor="var(--gauge-yellow)" />
+              <stop offset="62%" stopColor="var(--gauge-blue)" />
+              <stop offset="78%" stopColor="var(--gauge-blue)" />
+              <stop offset="82%" stopColor="var(--gauge-green)" />
               <stop offset="100%" stopColor="var(--gauge-green)" />
             </linearGradient>
             <filter id="score-gauge-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
