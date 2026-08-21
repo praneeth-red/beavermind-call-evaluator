@@ -1,8 +1,8 @@
 import "server-only";
 
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 
-import { evaluationCandidateSchema } from "../domain/evaluation-schema";
+import { evaluationCandidateSchema, type EvaluationCandidate } from "../domain/evaluation-schema";
 import { rubricConfigs } from "../domain/rubric-config";
 import type { CallType } from "../domain/types";
 import { evaluatorTestModeEnabled } from "./test-mode";
@@ -13,17 +13,47 @@ export async function requestCandidate(
 ): Promise<unknown> {
   if (evaluatorTestModeEnabled()) return deterministicCandidate(prompt);
 
-  const result = await generateText({
-    model: "openai/gpt-5.6-luna",
-    output: Output.object({ schema: evaluationCandidateSchema }),
-    prompt: repair
-      ? `${prompt}\n\nVALIDATION REPAIR\n${repair}\nReturn the full corrected object.`
-      : prompt,
-    reasoning: "xhigh",
-    maxOutputTokens: 32_000,
-  });
+  const callType: CallType = prompt.includes("# Coaching call")
+    ? "coaching"
+    : "kickoff";
 
-  return result.output;
+  let output: EvaluationCandidate;
+  try {
+    output = (await generateText({
+      model: "deepseek/deepseek-v4-flash-0731",
+      output: Output.object({ schema: evaluationCandidateSchema }),
+      prompt: repair
+        ? `${prompt}\n\nVALIDATION REPAIR\n${repair}\nReturn the full corrected object.`
+        : prompt,
+      reasoning: "xhigh",
+      maxOutputTokens: 32_000,
+    })).output;
+  } catch (error) {
+    if (!NoObjectGeneratedError.isInstance(error) || !error.text) throw error;
+    try {
+      const candidate: unknown = JSON.parse(
+        error.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""),
+      );
+      const parsed = evaluationCandidateSchema.safeParse(candidate);
+      if (!parsed.success) return candidate;
+      output = parsed.data;
+    } catch {
+      throw error;
+    }
+  }
+
+  for (const dimension of output.dimensions) {
+    const rule = Number.isInteger(dimension.dimension)
+      ? rubricConfigs[callType].dimensions[dimension.dimension - 1]
+      : undefined;
+    if (!rule || !dimension.active || dimension.score === null) continue;
+    if (dimension.score < 0 || dimension.score > rule.maximum) continue;
+    dimension.score = Math.max(
+      ...rule.scores.filter((score) => score <= dimension.score!),
+    );
+  }
+
+  return output;
 }
 
 async function deterministicCandidate(prompt: string) {

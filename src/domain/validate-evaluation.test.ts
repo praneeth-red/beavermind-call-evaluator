@@ -164,6 +164,57 @@ describe("score utilities", () => {
 });
 
 describe("validateEvaluation", () => {
+  it("restores exact transcript punctuation in otherwise exact evidence", () => {
+    const transcript =
+      "[Coach]: Coach said “yes”—clearly\n[Client]: Client says beta gamma\n[Coach]: Coach confirms delta\n[Coach]: Coach closes epsilon";
+    const candidate = candidateFor("kickoff", "coach said YES, clearly");
+
+    const result = validateEvaluation("kickoff", transcript, candidate);
+
+    expect(result.dimensions[0].evidence[0].quote).toBe("Coach said “yes”—clearly");
+    expect(result.redFlags[0].evidence[0].quote).toBe("Coach said “yes”—clearly");
+    expect(result.scoringSignals.followUpQuestionsAsked.evidence[0].quote).toBe(
+      "Coach said “yes”—clearly",
+    );
+  });
+
+  it("stores an exact transcript segment from a longer lightly paraphrased quote", () => {
+    const transcript =
+      "[Coach]: Coach said yes clearly because this plan works today\n[Client]: Client says beta gamma\n[Coach]: Coach confirms delta\n[Coach]: Coach closes epsilon";
+    const candidate = candidateFor(
+      "kickoff",
+      "Coach said yes plainly because this plan works today",
+    );
+
+    const result = validateEvaluation("kickoff", transcript, candidate);
+
+    expect(result.dimensions[0].evidence[0].quote).toBe(
+      "Coach said yes clearly because this plan works today",
+    );
+  });
+
+  it("rejects an invented quote that contains only a generic transcript fragment", () => {
+    const transcript =
+      "[Coach]: I want to make sure the client understands this plan today\n[Client]: Client says beta gamma\n[Coach]: Coach confirms delta\n[Coach]: Coach closes epsilon";
+    const candidate = candidateFor(
+      "kickoff",
+      "I want to make sure you booked it now",
+    );
+
+    expect(() => validateEvaluation("kickoff", transcript, candidate)).toThrow(/evidence/i);
+  });
+
+  it("does not fuzzily scan an oversized nonexact quote", () => {
+    const transcriptWords = Array.from({ length: 90 }, (_, index) => `word${index}`);
+    const quoteWords = [...transcriptWords];
+    quoteWords[45] = "invented";
+    const transcript =
+      `[Coach]: ${transcriptWords.join(" ")}\n[Client]: Client says beta gamma\n[Coach]: Coach confirms delta\n[Coach]: Coach closes epsilon`;
+    const candidate = candidateFor("kickoff", quoteWords.join(" "));
+
+    expect(() => validateEvaluation("kickoff", transcript, candidate)).toThrow(/evidence/i);
+  });
+
   it("canonicalizes model-supplied dimension names and bands from the rubric score", () => {
     const candidate = candidateFor("kickoff");
     candidate.dimensions[0] = {
