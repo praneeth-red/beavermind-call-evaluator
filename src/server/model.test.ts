@@ -29,6 +29,7 @@ test("requests DeepSeek V4 Flash 0731 through Vercel with maximum reasoning", as
   expect(boundary.generateText).toHaveBeenCalledWith(
     expect.objectContaining({
       model: "deepseek/deepseek-v4-flash-0731",
+      providerOptions: { gateway: { only: ["fireworks"] } },
       reasoning: "xhigh",
     }),
   );

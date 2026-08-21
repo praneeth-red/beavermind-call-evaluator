@@ -201,14 +201,11 @@ describe("evaluateRun", () => {
     });
   });
 
-  it("makes exactly one repair request after invalid evidence", async () => {
+  it("makes exactly one repair request with safe validation feedback", async () => {
     const runs = createInMemoryRunRepository();
     const created = await runs.createRun(submission);
     const invalid = candidate();
-    invalid.dimensions[0].score = 1;
-    invalid.dimensions[0].evidence = [
-      { turn: 1, quote: "fabricated transcript evidence" },
-    ];
+    invalid.scoringSignals.followUpQuestionsAsked.evidence = [];
     const repairs: Array<string | undefined> = [];
 
     await evaluateRun(
@@ -222,8 +219,7 @@ describe("evaluateRun", () => {
     expect(repairs).toHaveLength(2);
     expect(repairs[0]).toBeUndefined();
     expect(repairs[1]).toMatch(/exact turn evidence/i);
-    expect(repairs[1]).toMatch(/transcript turn 1/i);
-    expect(repairs[1]).not.toContain("fabricated transcript evidence");
+    expect(repairs[1]).toMatch(/follow-up questions.*requires evidence/i);
     await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
       status: "completed",
       publicError: null,
@@ -234,8 +230,7 @@ describe("evaluateRun", () => {
     const runs = createInMemoryRunRepository();
     const created = await runs.createRun(submission);
     const invalid = candidate();
-    invalid.dimensions[0].score = 1;
-    invalid.dimensions[0].evidence = [{ turn: 1, quote: "invented secret" }];
+    invalid.scoringSignals.followUpQuestionsAsked.evidence = [];
     let requests = 0;
 
     await evaluateRun(
@@ -253,7 +248,7 @@ describe("evaluateRun", () => {
       result: null,
       publicError: "The evaluation could not be completed. Please try again.",
     });
-    expect(publicRun?.publicError).not.toContain("invented secret");
+    expect(publicRun?.publicError).not.toContain("follow-up questions");
   });
 
   it("keeps schema-invalid model output out of repair and public errors", async () => {
