@@ -22,14 +22,41 @@ export function gradeFor(score: number): EvaluationResult["grade"] {
   return "FAIL";
 }
 
-function assertEvidence(turns: TranscriptTurn[], turn: number, quote: string) {
-  if (!turns[turn - 1]?.text.includes(quote)) {
-    throw new Error(`Evidence quote does not match transcript turn ${turn}.`);
+function exactEvidenceQuote(turns: TranscriptTurn[], turn: number, quote: string) {
+  const turnText = turns[turn - 1]?.text ?? "";
+  if (turnText.includes(quote)) return quote;
+
+  const words = (value: string) => [...value.matchAll(/[\p{L}\p{N}]+/gu)];
+  const quoteWords = words(quote);
+  const turnWords = words(turnText);
+  const fuzzy = quoteWords.length >= 6 && quoteWords.length <= 80;
+  const allowedMismatches = fuzzy ? (quoteWords.length >= 10 ? 2 : 1) : 0;
+  let bestStart = -1;
+  let bestMismatches = allowedMismatches + 1;
+  for (let start = 0; start <= turnWords.length - quoteWords.length; start += 1) {
+    let mismatches = 0;
+    for (let index = 0; index < quoteWords.length; index += 1) {
+      if (
+        quoteWords[index][0].toLocaleLowerCase() !==
+        turnWords[start + index][0].toLocaleLowerCase()
+      ) {
+        mismatches += 1;
+        if (mismatches > allowedMismatches) break;
+      }
+    }
+    if (mismatches < bestMismatches) [bestStart, bestMismatches] = [start, mismatches];
   }
+  if (bestStart >= 0 && bestMismatches <= allowedMismatches) {
+    const first = turnWords[bestStart];
+    const last = turnWords[bestStart + quoteWords.length - 1];
+    return turnText.slice(first.index, last.index! + last[0].length);
+  }
+
+  throw new Error(`Evidence quote does not match transcript turn ${turn}.`);
 }
 
 function assertSignalEvidence(turns: TranscriptTurn[], evidence: Array<{ turn: number; quote: string }>) {
-  for (const item of evidence) assertEvidence(turns, item.turn, item.quote);
+  for (const item of evidence) item.quote = exactEvidenceQuote(turns, item.turn, item.quote);
 }
 
 function assertPositiveSignal(
@@ -117,7 +144,9 @@ export function validateEvaluation(callType: CallType, transcript: string, input
   }
 
   for (const redFlag of candidate.redFlags) {
-    for (const evidence of redFlag.evidence) assertEvidence(turns, evidence.turn, evidence.quote);
+    for (const evidence of redFlag.evidence) {
+      evidence.quote = exactEvidenceQuote(turns, evidence.turn, evidence.quote);
+    }
   }
 
   const appliedDimensionCaps: EvaluationResult["appliedDimensionCaps"] = [];
@@ -195,7 +224,9 @@ export function validateEvaluation(callType: CallType, transcript: string, input
 
   const validatedDimensions = dimensions.map((dimension, index) => {
     const rule = config.dimensions[index];
-    for (const evidence of dimension.evidence) assertEvidence(turns, evidence.turn, evidence.quote);
+    for (const evidence of dimension.evidence) {
+      evidence.quote = exactEvidenceQuote(turns, evidence.turn, evidence.quote);
+    }
     if (!dimension.active) {
       if (!rule.optional) throw new Error(`Dimension ${dimension.dimension} cannot be inactive.`);
       if (dimension.score !== null || dimension.band !== "N/A") {
