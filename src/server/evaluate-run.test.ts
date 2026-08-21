@@ -222,6 +222,7 @@ describe("evaluateRun", () => {
     expect(repairs).toHaveLength(2);
     expect(repairs[0]).toBeUndefined();
     expect(repairs[1]).toMatch(/exact turn evidence/i);
+    expect(repairs[1]).toMatch(/transcript turn 1/i);
     expect(repairs[1]).not.toContain("fabricated transcript evidence");
     await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
       status: "completed",
