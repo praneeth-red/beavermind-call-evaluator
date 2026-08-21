@@ -23,16 +23,17 @@ beforeEach(() => {
   boundary.generateText.mockResolvedValue({ output: { dimensions: [] } });
 });
 
-test("requests DeepSeek V4 Flash 0731 through Vercel with maximum reasoning", async () => {
+test("requests the exact GPT-5.6 Luna model with low reasoning and no model fallback", async () => {
   await requestCandidate("Evaluate this transcript");
 
   expect(boundary.generateText).toHaveBeenCalledWith(
     expect.objectContaining({
-      model: "deepseek/deepseek-v4-flash-0731",
-      providerOptions: { gateway: { only: ["fireworks"] } },
-      reasoning: "xhigh",
+      model: "openai/gpt-5.6-luna",
+      reasoning: "low",
     }),
   );
+  const options = boundary.generateText.mock.calls[0][0];
+  expect(options.providerOptions?.gateway?.models).toBeUndefined();
 });
 
 test("rounds shuffled in-range model scores down using their dimension rules", async () => {

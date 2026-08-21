@@ -356,26 +356,6 @@ export function ReportDocument({
           <Text style={styles.body}>{result.brief}</Text>
         </View>
 
-        <View style={styles.section} minPresenceAhead={90} wrap>
-          <Text style={styles.eyebrow}>Retention watch</Text>
-          <Text style={styles.sectionTitle}>Red flags</Text>
-          {result.redFlags.length === 0 ? (
-            <Text style={styles.body}>
-              No evidence-backed retention risks were identified.
-            </Text>
-          ) : (
-            result.redFlags.map((flag, index) => (
-              <View key={`${flag.risk}-${index}`} style={styles.redFlag} wrap>
-                <Text style={styles.redFlagTitle}>{flag.risk}</Text>
-                <Text style={styles.body}>{flag.explanation}</Text>
-                <View style={styles.detail} wrap>
-                  <EvidenceList evidence={flag.evidence} />
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
         <View style={styles.dimensionsIntro} minPresenceAhead={100}>
           <Text style={styles.eyebrow}>Evidence map</Text>
           <Text style={styles.sectionTitle}>Twelve scored dimensions</Text>
@@ -420,6 +400,26 @@ export function ReportDocument({
                 </Text>
               ))}
             </View>
+          )}
+        </View>
+
+        <View style={styles.section} minPresenceAhead={90} wrap>
+          <Text style={styles.eyebrow}>Retention watch</Text>
+          <Text style={styles.sectionTitle}>Red flags</Text>
+          {result.redFlags.length === 0 ? (
+            <Text style={styles.body}>
+              No evidence-backed retention risks were identified.
+            </Text>
+          ) : (
+            result.redFlags.map((flag, index) => (
+              <View key={`${flag.risk}-${index}`} style={styles.redFlag} wrap>
+                <Text style={styles.redFlagTitle}>{flag.risk}</Text>
+                <Text style={styles.body}>{flag.explanation}</Text>
+                <View style={styles.detail} wrap>
+                  <EvidenceList evidence={flag.evidence} />
+                </View>
+              </View>
+            ))
           )}
         </View>
 

@@ -48,31 +48,11 @@ export function Report({
         <span>Projected score: {result.oneThing.projectedScore}</span>
       </section>
 
-      <div className="report-intro-grid">
-        <section className="paper-section" aria-labelledby="brief-heading">
-          <p className="eyebrow">Coach brief</p>
-          <h2 id="brief-heading">What the call shows</h2>
-          <p>{result.brief}</p>
-        </section>
-
-        <section className="paper-section risks" aria-labelledby="risks-heading">
-          <p className="eyebrow">Retention watch</p>
-          <h2 id="risks-heading">Red flags</h2>
-          {result.redFlags.length === 0 ? (
-            <p>No evidence-backed retention risks were identified.</p>
-          ) : (
-            <ul className="risk-list">
-              {result.redFlags.map((flag, index) => (
-                <li key={`${flag.risk}-${index}`}>
-                  <h3>{flag.risk}</h3>
-                  <p>{flag.explanation}</p>
-                  <EvidenceList evidence={flag.evidence} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+      <section className="paper-section coach-brief" aria-labelledby="brief-heading">
+        <p className="eyebrow">Coach brief</p>
+        <h2 id="brief-heading">What the call shows</h2>
+        <p>{result.brief}</p>
+      </section>
 
       <section className="dimensions-section" aria-labelledby="dimensions-heading">
         <div className="section-heading">
@@ -126,38 +106,25 @@ export function Report({
         </div>
       </section>
 
-      <div className="audit-grid">
-        <section className="paper-section" aria-labelledby="caps-heading">
-          <p className="eyebrow">Score controls</p>
-          <h2 id="caps-heading">Applied caps</h2>
-          {result.appliedDimensionCaps.length === 0 && result.appliedTotalCaps.length === 0 ? (
-            <p>No score caps were applied.</p>
-          ) : (
-            <ul className="plain-list">
-              {result.appliedDimensionCaps.map((cap, index) => (
-                <li key={`dimension-${cap.dimension}-${index}`}>
-                  Dimension {cap.dimension}, maximum {cap.maximum}: {cap.reason}
-                </li>
-              ))}
-              {result.appliedTotalCaps.map((cap, index) => (
-                <li key={`total-${cap.maximum}-${index}`}>
-                  Total maximum {cap.maximum}: {cap.reason}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="paper-section" aria-labelledby="assumptions-heading">
-          <p className="eyebrow">Audit notes</p>
-          <h2 id="assumptions-heading">Assumptions</h2>
-          <ul className="plain-list">
-            {result.assumptions.map((assumption, index) => (
-              <li key={`${assumption}-${index}`}>{assumption}</li>
+      <section className="paper-section risks risks-final" aria-labelledby="risks-heading">
+        <div className="risks-header">
+          <p className="eyebrow">Retention watch</p>
+          <h2 id="risks-heading">Red flags</h2>
+        </div>
+        {result.redFlags.length === 0 ? (
+          <p>No evidence-backed retention risks were identified.</p>
+        ) : (
+          <ul className="risk-list">
+            {result.redFlags.map((flag, index) => (
+              <li key={`${flag.risk}-${index}`}>
+                <h3>{flag.risk}</h3>
+                <p>{flag.explanation}</p>
+                <EvidenceList evidence={flag.evidence} />
+              </li>
             ))}
           </ul>
-        </section>
-      </div>
+        )}
+      </section>
     </main>
   );
 }

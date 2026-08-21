@@ -20,13 +20,12 @@ export async function requestCandidate(
   let output: EvaluationCandidate;
   try {
     output = (await generateText({
-      model: "deepseek/deepseek-v4-flash-0731",
+      model: "openai/gpt-5.6-luna",
       output: Output.object({ schema: evaluationCandidateSchema }),
-      providerOptions: { gateway: { only: ["fireworks"] } },
       prompt: repair
         ? `${prompt}\n\nVALIDATION REPAIR\n${repair}\nReturn the full corrected object.`
         : prompt,
-      reasoning: "xhigh",
+      reasoning: "low",
       maxOutputTokens: 32_000,
     })).output;
   } catch (error) {

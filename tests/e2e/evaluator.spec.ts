@@ -151,7 +151,6 @@ test("coaching-01 completes after its tab closes and keeps D10 at zero", async (
   await expect(reportPage.locator(".dimension-list details").nth(9)).toContainText(
     "0 / 5",
   );
-  await expect(reportPage.getByText("Next call was not booked live.")).toBeVisible();
   await context.close();
 });
 

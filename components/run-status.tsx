@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ReportSkeleton } from "./report-skeleton";
 
 type ActiveStatus = "queued" | "processing";
 type RunStatusProps = {
@@ -71,13 +72,10 @@ export function RunStatus({ id, initialStatus, publicError }: RunStatusProps) {
     );
   }
 
-  return (
-    <main className="status-shell" aria-live="polite">
-      <span className="status-pulse" aria-hidden="true" />
-      <p className="eyebrow">Run in progress</p>
-      <h1>{labels[status]}</h1>
-      <p>This page updates automatically. You can close it and return to the same URL.</p>
-      {pollError ? <p className="status-note">{pollError}</p> : null}
-    </main>
-  );
+  return <ReportSkeleton
+    eyebrow="Run in progress"
+    title={labels[status]}
+    description="This page updates automatically. You can close it and return to the same URL."
+    note={pollError}
+  />;
 }

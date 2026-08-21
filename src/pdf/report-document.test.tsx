@@ -51,6 +51,9 @@ describe("ReportDocument", () => {
     expect(text).toContain(
       "Inactive dimensions contribute neither points nor maximum points.",
     );
+    expect(text.indexOf("Red flags")).toBeGreaterThan(
+      text.indexOf("Inactive dimensions contribute neither points nor maximum points."),
+    );
     expect(text).toMatch(/Page 1 of \d+/);
 
     const compactPages = text

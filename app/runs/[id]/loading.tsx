@@ -1,9 +1,5 @@
+import { ReportSkeleton } from "../../../components/report-skeleton";
+
 export default function LoadingRun() {
-  return (
-    <main className="status-shell" aria-live="polite">
-      <span className="status-pulse" aria-hidden="true" />
-      <p className="eyebrow">Loading run</p>
-      <h1>Opening the evaluation</h1>
-    </main>
-  );
+  return <ReportSkeleton eyebrow="Loading run" title="Opening the evaluation" />;
 }
