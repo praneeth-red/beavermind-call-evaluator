@@ -1,6 +1,6 @@
 # BeaverMind call evaluator
 
-Paste a synthetic kick-off or coaching transcript and receive a permanent, evidence-backed report URL plus a matching PDF. The evaluator scores 12 rubric dimensions, ties positive scores to exact speaking turns, applies caps in application code, and stores the canonical report for later refreshes.
+Paste or upload a synthetic kick-off or coaching transcript and receive a permanent, evidence-backed report URL plus a matching PDF. The evaluator scores 12 rubric dimensions, ties positive scores to exact speaking turns, applies caps in application code, and stores the canonical report for later refreshes.
 
 Live deployment: https://beavermind-call-evaluator.vercel.app
 
@@ -17,7 +17,7 @@ The application and its isolated Supabase database are deployed. Submission, dur
 
 The lifecycle is deliberately small:
 
-1. A Server Action validates the call type and 1 to 65,000 character transcript.
+1. The form accepts pasted text, local `.txt` files, or one of four supplied examples. A Server Action validates the call type and transcript.
 2. One atomic Postgres function rate-limits and creates a queued run.
 3. Next.js `after` starts server-side evaluation after the redirect response.
 4. An atomic claim changes the run from queued to processing, so duplicate workers do not call the model twice.
@@ -93,7 +93,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 
 ## Deployment
 
-1. Create a new Supabase project and apply `supabase/migrations/202608210001_create_runs.sql`.
+1. Create a new Supabase project and apply the checked-in migrations with `supabase db push`.
 2. Create a Vercel project and add only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CLIENT_HASH_SALT` to preview and production server environments.
 3. Leave `EVALUATOR_TEST_MODE` unset.
 4. Deploy a preview and verify it before promoting or deploying production.
@@ -101,11 +101,11 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 
 ## Known limits
 
-- Only pasted `kickoff` and `coaching` transcripts are supported.
-- There are no accounts, uploads, report index, rubric editor, analytics, or deletion UI.
+- Only `kickoff` and `coaching` transcripts are supported.
+- There are no accounts, persistent file uploads, report index, rubric editor, analytics, or deletion UI. The browser reads `.txt` files locally and submits their text.
 - Anonymous clients can create 10 runs per rolling hour.
-- A transcript is limited to 65,000 characters.
-- Browser textarea line endings are normalized before validation so the server limit matches the visible character counter. The largest fixture is 64,801 bytes and 64,795 browser characters.
+- The form has no low visible character cap. The server rejects input above 500,000 characters as an anonymous-service safety boundary.
+- Browser textarea line endings are normalized before validation. The largest fixture is 64,801 bytes and 64,795 browser characters.
 - One invalid model result receives one repair request; a second invalid result fails safely.
 - Queued or processing work older than five minutes becomes a terminal timeout failure.
 - Word share is only an estimate of talk time.

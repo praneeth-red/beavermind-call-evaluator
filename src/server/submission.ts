@@ -2,6 +2,8 @@ import { createHmac } from "node:crypto";
 
 import type { CallType } from "../domain/types";
 
+export const MAX_TRANSCRIPT_LENGTH = 500_000;
+
 export function parseSubmission(formData: FormData): {
   callType: CallType;
   transcript: string;
@@ -19,8 +21,8 @@ export function parseSubmission(formData: FormData): {
   if (transcript.trim().length === 0) {
     throw new Error("Paste a transcript to evaluate.");
   }
-  if (transcript.length > 65_000) {
-    throw new Error("Transcript must be 65,000 characters or fewer.");
+  if (transcript.length > MAX_TRANSCRIPT_LENGTH) {
+    throw new Error("Transcript is too large for one evaluation.");
   }
 
   return { callType, transcript };

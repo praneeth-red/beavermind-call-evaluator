@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const fixture = (...parts: string[]) => join(process.cwd(), "fixtures", ...parts);
+const publicExample = (name: string) => join(process.cwd(), "public", "examples", name);
 const readFixture = (...parts: string[]) => {
   const path = fixture(...parts);
   return existsSync(path) ? readFileSync(path, "utf8") : "";
@@ -27,6 +28,15 @@ describe("exercise fixtures", () => {
   it("includes all four source transcripts", () => {
     for (const name of ["kickoff-01.txt", "kickoff-02.txt", "coaching-01.txt", "coaching-02.txt"]) {
       expect(existsSync(fixture("transcripts", name)), name).toBe(true);
+    }
+  });
+
+  it("serves exact public copies of all four source transcripts", () => {
+    for (const name of ["kickoff-01.txt", "kickoff-02.txt", "coaching-01.txt", "coaching-02.txt"]) {
+      expect(existsSync(publicExample(name)), name).toBe(true);
+      expect(readFileSync(publicExample(name), "utf8"), name).toBe(
+        readFixture("transcripts", name),
+      );
     }
   });
 

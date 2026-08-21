@@ -4,6 +4,12 @@ import { evaluatorTestModeEnabled } from "./src/server/test-mode";
 
 evaluatorTestModeEnabled();
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "3mb",
+    },
+  },
+};
 
 export default nextConfig;

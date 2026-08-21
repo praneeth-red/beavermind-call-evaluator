@@ -10,8 +10,8 @@ function form(callType: string, transcript: string) {
 }
 
 describe("submission boundary", () => {
-  it("accepts both call types through the 65,000 character limit", () => {
-    const transcript = "x".repeat(65_000);
+  it("accepts transcripts far longer than the supplied examples", () => {
+    const transcript = "x".repeat(250_000);
 
     expect(parseSubmission(form("kickoff", transcript))).toEqual({
       callType: "kickoff",
@@ -38,7 +38,7 @@ describe("submission boundary", () => {
   it.each([
     ["sales", "[Coach]: Hello", "Choose kick-off or coaching."],
     ["kickoff", "   ", "Paste a transcript to evaluate."],
-    ["coaching", "x".repeat(65_001), "Transcript must be 65,000 characters or fewer."],
+    ["coaching", "x".repeat(500_001), "Transcript is too large for one evaluation."],
   ])("rejects invalid form input", (callType, transcript, message) => {
     expect(() => parseSubmission(form(callType, transcript))).toThrow(message);
   });

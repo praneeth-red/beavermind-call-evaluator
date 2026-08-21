@@ -9,7 +9,7 @@ export default function HomePage() {
         <p className="eyebrow">BeaverMind call evaluator</p>
         <h1>Trace every score back to the call.</h1>
         <p className="lede">
-          Paste a synthetic kick-off or coaching transcript. The report checks each rubric dimension against exact speaking turns.
+          Paste or upload a synthetic kick-off or coaching transcript. The report checks each rubric dimension against exact speaking turns.
         </p>
         <TranscriptForm />
       </section>
