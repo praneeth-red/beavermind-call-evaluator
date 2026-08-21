@@ -725,8 +725,8 @@ button,
 }
 
 .score-gauge {
-  max-width: 430px;
-  width: min(74vw, 430px);
+  max-width: 320px;
+  width: min(68vw, 320px);
 }
 
 .score-gauge-meter {
@@ -740,7 +740,7 @@ button,
 }
 
 .score-gauge-track,
-.score-zone {
+.score-gauge-gradient {
   fill: none;
   stroke-width: 13;
 }
@@ -749,9 +749,9 @@ button,
   stroke: #dfe4ec;
 }
 
-.score-zone {
-  stroke-dasharray: 0 100;
-  stroke-linecap: butt;
+.score-gauge-gradient {
+  stroke: url("#score-gauge-gradient");
+  stroke-linecap: round;
 }
 
 .score-zone-fail {
@@ -774,46 +774,11 @@ button,
   color: var(--positive);
 }
 
-path.score-zone-fail {
-  stroke: var(--retention-red);
-  stroke-dasharray: 60 40;
-}
-
-path.score-zone-risk {
-  stroke: var(--amber);
-  stroke-dasharray: 10 90;
-  stroke-dashoffset: -60;
-}
-
-path.score-zone-inconsistent {
-  stroke: var(--score-inconsistent);
-  stroke-dasharray: 10 90;
-  stroke-dashoffset: -70;
-}
-
-path.score-zone-strong {
-  stroke: var(--cobalt);
-  stroke-dasharray: 10 90;
-  stroke-dashoffset: -80;
-}
-
-path.score-zone-elite {
-  stroke: var(--positive);
-  stroke-dasharray: 10 90;
-  stroke-dashoffset: -90;
-}
-
-.score-gauge-needle {
-  stroke: var(--ink);
-  stroke-linecap: round;
-  stroke-width: 3;
-  transform-box: fill-box;
-  transform-origin: center bottom;
-  transition: transform 500ms ease-out;
-}
-
-.score-gauge-hub {
+.score-gauge-selector {
   fill: var(--ink);
+  stroke: var(--sheet);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
 }
 
 .score-gauge-reading {
@@ -834,7 +799,7 @@ path.score-zone-elite {
 
 .score-gauge-reading strong {
   color: var(--ink);
-  font-size: clamp(2.3rem, 6vw, 3.4rem);
+  font-size: clamp(2rem, 5vw, 2.8rem);
   letter-spacing: -0.08em;
   line-height: 0.8;
 }
@@ -859,9 +824,15 @@ path.score-zone-elite {
   text-transform: uppercase;
 }
 
+.score-gauge-legend::before {
+  background: linear-gradient(90deg, var(--retention-red) 0%, var(--amber) 60%, var(--score-inconsistent) 70%, var(--cobalt) 80%, var(--positive) 100%);
+  content: "";
+  grid-column: 1 / -1;
+  height: 4px;
+}
+
 .score-gauge-legend li {
-  border-top: 4px solid currentColor;
-  padding-top: 5px;
+  padding-top: 0;
 }
 
 .score-gauge-legend small {

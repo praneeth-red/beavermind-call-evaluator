@@ -19,7 +19,10 @@ function ScoreGauge({
   score: number;
   grade: EvaluationResult["grade"];
 }) {
-  const needleAngle = Math.round((score * 1.8 - 90) * 10) / 10;
+  const selectorRadians = ((180 - score * 1.8) * Math.PI) / 180;
+  const selectorX = Math.round((100 + 104 * Math.cos(selectorRadians)) * 10) / 10;
+  const selectorY = Math.round((100 - 104 * Math.sin(selectorRadians)) * 10) / 10;
+  const selectorAngle = Math.round((score * 1.8 - 90) * 10) / 10;
 
   return (
     <div
@@ -29,22 +32,23 @@ function ScoreGauge({
       aria-label={`Overall score: ${score} out of 100, ${grade}`}
     >
       <div className="score-gauge-meter" aria-hidden="true">
-        <svg viewBox="0 0 200 112">
+        <svg viewBox="-14 -14 228 128">
+          <defs>
+            <linearGradient id="score-gauge-gradient" x1="10" y1="0" x2="190" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="var(--retention-red)" />
+              <stop offset="60%" stopColor="var(--amber)" />
+              <stop offset="70%" stopColor="var(--score-inconsistent)" />
+              <stop offset="80%" stopColor="var(--cobalt)" />
+              <stop offset="100%" stopColor="var(--positive)" />
+            </linearGradient>
+          </defs>
           <path className="score-gauge-track" d="M 10 100 A 90 90 0 0 1 190 100" />
-          <path className="score-zone score-zone-fail" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
-          <path className="score-zone score-zone-risk" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
-          <path className="score-zone score-zone-inconsistent" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
-          <path className="score-zone score-zone-strong" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
-          <path className="score-zone score-zone-elite" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
-          <line
-            className="score-gauge-needle"
-            x1="100"
-            y1="100"
-            x2="100"
-            y2="28"
-            style={{ transform: `rotate(${needleAngle}deg)` }}
+          <path className="score-gauge-gradient" d="M 10 100 A 90 90 0 0 1 190 100" />
+          <path
+            className="score-gauge-selector"
+            d="M -6 -7 L 6 -7 L 0 5 Z"
+            transform={`translate(${selectorX} ${selectorY}) rotate(${selectorAngle})`}
           />
-          <circle className="score-gauge-hub" cx="100" cy="100" r="7" />
         </svg>
         <div className="score-gauge-reading">
           <span><strong>{score}</strong> / 100</span>
