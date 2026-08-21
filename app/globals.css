@@ -871,7 +871,13 @@ button,
   border-top: 5px solid var(--score-zone-color);
   color: var(--ink);
   line-height: 1.15;
+  min-width: 0;
   padding-top: 7px;
+}
+
+.score-gauge-legend li > span {
+  display: block;
+  min-height: 2.3em;
 }
 
 .score-gauge-legend small {

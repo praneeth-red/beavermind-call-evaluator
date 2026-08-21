@@ -66,11 +66,11 @@ function ScoreGauge({
         </div>
       </div>
       <ol className="score-gauge-legend" aria-label="Score bands">
-        <li className="score-zone-fail">Fail <small>0–59</small></li>
-        <li className="score-zone-risk">At risk <small>60–69</small></li>
-        <li className="score-zone-inconsistent">Inconsistent <small>70–79</small></li>
-        <li className="score-zone-strong">Strong <small>80–89</small></li>
-        <li className="score-zone-elite">Elite <small>90–100</small></li>
+        <li className="score-zone-fail"><span>Fail</span><small>0–59</small></li>
+        <li className="score-zone-risk"><span>At risk</span><small>60–69</small></li>
+        <li className="score-zone-inconsistent" aria-label="Inconsistent, 70 to 79"><span>Incon<wbr />sistent</span><small>70–79</small></li>
+        <li className="score-zone-strong"><span>Strong</span><small>80–89</small></li>
+        <li className="score-zone-elite"><span>Elite</span><small>90–100</small></li>
       </ol>
     </div>
   );
