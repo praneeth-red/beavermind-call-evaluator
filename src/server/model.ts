@@ -22,6 +22,7 @@ export async function requestCandidate(
     output = (await generateText({
       model: "deepseek/deepseek-v4-flash-0731",
       output: Output.object({ schema: evaluationCandidateSchema }),
+      providerOptions: { gateway: { only: ["fireworks"] } },
       prompt: repair
         ? `${prompt}\n\nVALIDATION REPAIR\n${repair}\nReturn the full corrected object.`
         : prompt,
