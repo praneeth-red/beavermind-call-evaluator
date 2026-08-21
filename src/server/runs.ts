@@ -41,7 +41,7 @@ class RunRepository {
   constructor(memory?: Map<string, RunRecord>, options: RepositoryOptions = {}) {
     this.memory = memory;
     this.now = options.now ?? (() => new Date());
-    this.staleAfterMs = options.staleAfterMs ?? 5 * 60_000;
+    this.staleAfterMs = options.staleAfterMs ?? 12 * 60_000;
   }
 
   get size() {

@@ -338,6 +338,24 @@ describe("run lifecycle", () => {
     },
   );
 
+  it("keeps max-reasoning model work alive beyond five minutes", async () => {
+    const clock = controllableClock();
+    const runs = createInMemoryRunRepository({ now: clock.now });
+    const created = await runs.createRun(submission);
+    await runs.claimRun(created.id);
+
+    clock.advance(5 * 60_000 + 1);
+    await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
+      status: "processing",
+    });
+
+    clock.advance(7 * 60_000);
+    await expect(runs.getPublicRun(created.id)).resolves.toMatchObject({
+      status: "failed",
+      publicError: STALE_RUN_ERROR,
+    });
+  });
+
   it("does not fail a run freshly claimed after a stale queued snapshot", async () => {
     let currentTime = new Date("2026-08-21T10:00:00.000Z");
     let nowCalls = 0;
