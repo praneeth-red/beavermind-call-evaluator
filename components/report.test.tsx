@@ -50,8 +50,8 @@ function result(): EvaluationResult {
     ],
     rawScore: 76,
     activeMaximum: 100,
-    normalizedScore: 76,
-    grade: "INCONSISTENT",
+    normalizedScore: 64,
+    grade: "AT RISK",
     dimensions: Array.from({ length: 12 }, (_, index) => ({
       dimension: index + 1,
       name: `Observed behavior ${index + 1}`,
@@ -87,6 +87,38 @@ const turns: TranscriptTurn[] = Array.from({ length: 8 }, (_, index) => ({
 }));
 
 describe("Report", () => {
+  it("shows the exact overall score on the rubric gauge", () => {
+    const html = renderToStaticMarkup(
+      createElement(Report, {
+        result: result(),
+        runId: "9f6fd561-7d5d-45bf-a1c9-88ecb891db5e",
+        turns,
+      }),
+    );
+
+    expect(html).toContain('aria-label="Overall score: 64 out of 100, AT RISK"');
+    expect(html).toContain('data-score="64"');
+    expect(html).toContain('style="transform:rotate(25.2deg)"');
+    expect(html).toContain("Fail");
+    expect(html).toContain("At risk");
+    expect(html).toContain("Inconsistent");
+    expect(html).toContain("Strong");
+    expect(html).toContain("Elite");
+  });
+
+  it("links back to a fresh evaluation from the report header", () => {
+    const html = renderToStaticMarkup(
+      createElement(Report, {
+        result: result(),
+        runId: "9f6fd561-7d5d-45bf-a1c9-88ecb891db5e",
+        turns,
+      }),
+    );
+
+    expect(html).toContain('href="/"');
+    expect(html).toContain("Evaluate another call");
+  });
+
   it("orders unique evidence turns by transcript chronology", () => {
     const fixture = result();
     fixture.dimensions[1].evidence = [{ turn: 8, quote: "Later citation." }];
@@ -104,8 +136,8 @@ describe("Report", () => {
       }),
     );
 
-    expect(html).toContain(">76<");
-    expect(html).toContain("INCONSISTENT");
+    expect(html).toContain(">64<");
+    expect(html).toContain("AT RISK");
     expect(html).toContain("Close with a live booking.");
     expect(html).toContain("Projected score: 84");
     expect(html).toContain("The call was focused");

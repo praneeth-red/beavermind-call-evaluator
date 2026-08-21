@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import type {
   Evidence,
@@ -10,6 +11,56 @@ import type {
 import { ScoreRail } from "./score-rail";
 
 type SelectEvidence = (turn: number, trigger: HTMLButtonElement) => void;
+
+function ScoreGauge({
+  score,
+  grade,
+}: {
+  score: number;
+  grade: EvaluationResult["grade"];
+}) {
+  const needleAngle = Math.round((score * 1.8 - 90) * 10) / 10;
+
+  return (
+    <div
+      className="score-gauge"
+      data-score={score}
+      role="img"
+      aria-label={`Overall score: ${score} out of 100, ${grade}`}
+    >
+      <div className="score-gauge-meter" aria-hidden="true">
+        <svg viewBox="0 0 200 112">
+          <path className="score-gauge-track" d="M 10 100 A 90 90 0 0 1 190 100" />
+          <path className="score-zone score-zone-fail" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
+          <path className="score-zone score-zone-risk" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
+          <path className="score-zone score-zone-inconsistent" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
+          <path className="score-zone score-zone-strong" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
+          <path className="score-zone score-zone-elite" d="M 10 100 A 90 90 0 0 1 190 100" pathLength="100" />
+          <line
+            className="score-gauge-needle"
+            x1="100"
+            y1="100"
+            x2="100"
+            y2="28"
+            style={{ transform: `rotate(${needleAngle}deg)` }}
+          />
+          <circle className="score-gauge-hub" cx="100" cy="100" r="7" />
+        </svg>
+        <div className="score-gauge-reading">
+          <span><strong>{score}</strong> / 100</span>
+          <b>{grade}</b>
+        </div>
+      </div>
+      <ol className="score-gauge-legend" aria-label="Score bands">
+        <li className="score-zone-fail">Fail <small>0–59</small></li>
+        <li className="score-zone-risk">At risk <small>60–69</small></li>
+        <li className="score-zone-inconsistent">Inconsistent <small>70–79</small></li>
+        <li className="score-zone-strong">Strong <small>80–89</small></li>
+        <li className="score-zone-elite">Elite <small>90–100</small></li>
+      </ol>
+    </div>
+  );
+}
 
 export function citedEvidenceTurns(result: EvaluationResult): number[] {
   return [
@@ -240,17 +291,16 @@ export function Report({
         <header className="report-header">
         <div>
           <p className="eyebrow">Call evaluation</p>
-          <div className="score-lockup">
-            <strong>{result.normalizedScore}</strong>
-            <span>
-              <span>out of 100</span>
-              <b>{result.grade}</b>
-            </span>
-          </div>
+          <ScoreGauge score={result.normalizedScore} grade={result.grade} />
         </div>
-        <a className="secondary-action" href={`/api/runs/${runId}/pdf`}>
-          Download PDF
-        </a>
+        <div className="report-actions">
+          <Link className="secondary-action" href="/">
+            ← Evaluate another call
+          </Link>
+          <a className="secondary-action" href={`/api/runs/${runId}/pdf`}>
+            Download PDF
+          </a>
+        </div>
       </header>
 
       <section className="one-thing" aria-labelledby="one-thing-heading">
