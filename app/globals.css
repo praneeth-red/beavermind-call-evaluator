@@ -253,13 +253,26 @@ button,
   align-items: flex-start;
   background: var(--sheet);
   border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--cobalt);
   color: var(--ink);
   cursor: pointer;
   display: flex;
   gap: 12px;
+  justify-content: flex-start;
   min-height: 70px;
   padding: 14px 16px;
   text-align: left;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.transcript-form fieldset > button:hover {
+  box-shadow: 3px 3px 0 var(--cobalt);
+  transform: translate(-1px, -1px);
+}
+
+.transcript-form fieldset > button:active {
+  box-shadow: 1px 1px 0 var(--cobalt);
+  transform: translate(1px, 1px);
 }
 
 .transcript-form fieldset > button[aria-pressed="true"] {

@@ -56,6 +56,45 @@ async function expectCompletedReport(page: Page) {
   await expect(page.locator(".dimension-list details")).toHaveCount(12);
 }
 
+test("call type buttons align left and pop like example buttons", async ({ page }) => {
+  await page.goto("/");
+
+  const kickoff = page.getByRole("button", { name: /kick-off.*set-up/i });
+  const resting = await kickoff.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return {
+      boxShadow: style.boxShadow,
+      justifyContent: style.justifyContent,
+      transform: style.transform,
+      transitionProperty: style.transitionProperty,
+    };
+  });
+
+  expect(resting.justifyContent).toBe("flex-start");
+  expect(resting.boxShadow).not.toBe("none");
+  expect(resting.transitionProperty).toContain("box-shadow");
+  expect(resting.transitionProperty).toContain("transform");
+
+  await kickoff.hover();
+  await page.waitForTimeout(150);
+  const hovered = await kickoff.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return { boxShadow: style.boxShadow, transform: style.transform };
+  });
+  expect(hovered.boxShadow).not.toBe(resting.boxShadow);
+  expect(hovered.transform).not.toBe(resting.transform);
+
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  const pressed = await kickoff.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return { boxShadow: style.boxShadow, transform: style.transform };
+  });
+  await page.mouse.up();
+  expect(pressed.boxShadow).not.toBe(hovered.boxShadow);
+  expect(pressed.transform).not.toBe(hovered.transform);
+});
+
 test("call type and example choices can be cleared", async ({ page }) => {
   await page.goto("/");
 
