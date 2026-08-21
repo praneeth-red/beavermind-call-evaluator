@@ -15,6 +15,8 @@ const fixtures: Fixture[] = [
   { label: "coaching-02", callType: "coaching" },
 ];
 
+const transcriptField = (page: Page) => page.locator('textarea[name="transcript"]');
+
 async function removeTestStore() {
   const path = process.env.EVALUATOR_TEST_STORE;
   if (!path) throw new Error("EVALUATOR_TEST_STORE is not configured");
@@ -35,7 +37,13 @@ async function submit(page: Page, fixture: Fixture) {
   await page.getByRole("radio", {
     name: fixture.callType === "kickoff" ? /kick-off/i : /coaching/i,
   }).check();
-  await page.getByLabel("Transcript").fill(transcript);
+  await transcriptField(page).fill(transcript);
+  await page.getByRole("button", { name: "Evaluate call" }).click();
+  await expect(page).toHaveURL(/\/runs\/[0-9a-f-]{36}$/);
+  return page.url();
+}
+
+async function expectRunUrl(page: Page) {
   await page.getByRole("button", { name: "Evaluate call" }).click();
   await expect(page).toHaveURL(/\/runs\/[0-9a-f-]{36}$/);
   return page.url();
@@ -51,7 +59,18 @@ async function expectCompletedReport(page: Page) {
 test("kickoff-01 completes from the pinned fixture, survives refresh, and downloads PDF", async ({
   page,
 }) => {
-  const runUrl = await submit(page, fixtures[0]);
+  const transcript = await readFile(
+    join(process.cwd(), "fixtures", "transcripts", "kickoff-01.txt"),
+    "utf8",
+  );
+  await page.goto("/");
+  const textarea = transcriptField(page);
+  await page.getByLabel("Load example transcript").selectOption("kickoff-01");
+  await expect(textarea).toHaveValue(transcript);
+  await expect(page.getByRole("radio", { name: /kick-off/i })).toBeChecked();
+  await expect(textarea).not.toHaveAttribute("maxlength");
+  expect(await textarea.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(190);
+  const runUrl = await expectRunUrl(page);
   await page.reload();
   await expect(page).toHaveURL(runUrl);
   await expectCompletedReport(page);
@@ -78,7 +97,12 @@ test("kickoff-01 completes from the pinned fixture, survives refresh, and downlo
 test("kickoff-02 completes from the pinned fixture with all 12 canonical dimensions", async ({
   page,
 }) => {
-  await submit(page, fixtures[1]);
+  const path = join(process.cwd(), "fixtures", "transcripts", "kickoff-02.txt");
+  const transcript = await readFile(path, "utf8");
+  await page.goto("/");
+  await page.getByLabel("Upload .txt file").setInputFiles(path);
+  await expect(transcriptField(page)).toHaveValue(transcript);
+  await expectRunUrl(page);
   await expectCompletedReport(page);
   await expect(page.locator(".dimension-list details").first()).toContainText(
     "Pre-Call Preparation",
@@ -86,6 +110,31 @@ test("kickoff-02 completes from the pinned fixture with all 12 canonical dimensi
   await expect(page.locator(".dimension-list details").last()).toContainText(
     "Post-Call Execution",
   );
+});
+
+test("dropping a transcript loads its text and shows the source file", async ({
+  page,
+}) => {
+  const transcript = await readFile(
+    join(process.cwd(), "fixtures", "transcripts", "kickoff-01.txt"),
+    "utf8",
+  );
+  await page.goto("/");
+  const dropzone = page.locator(".file-dropzone");
+  const dataTransfer = await page.evaluateHandle((contents) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([contents], "kickoff-01.txt", { type: "text/plain" }));
+    return transfer;
+  }, transcript);
+
+  await dropzone.dispatchEvent("dragenter", { dataTransfer });
+  await expect(dropzone).toHaveAttribute("data-dragging", "true");
+  await dropzone.dispatchEvent("drop", { dataTransfer });
+
+  await expect(transcriptField(page)).toHaveValue(transcript);
+  await expect(dropzone).toHaveAttribute("data-dragging", "false");
+  await expect(page.getByText("kickoff-01.txt", { exact: true })).toBeVisible();
+  await expect(page.getByText("33.8 KB", { exact: true })).toBeVisible();
 });
 
 test("coaching-01 completes after its tab closes and keeps D10 at zero", async ({

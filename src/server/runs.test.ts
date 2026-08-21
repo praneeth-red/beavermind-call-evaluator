@@ -131,7 +131,7 @@ describe("run lifecycle", () => {
 
   it.each([
     { ...submission, transcript: "" },
-    { ...submission, transcript: "x".repeat(65_001) },
+    { ...submission, transcript: "x".repeat(500_001) },
     { ...submission, callType: "sales" },
   ])("rejects an invalid submission: $callType", async (input) => {
     const runs = createInMemoryRunRepository();
@@ -139,6 +139,18 @@ describe("run lifecycle", () => {
     await expect(runs.createRun(input as typeof submission)).rejects.toThrow(
       /invalid run submission/i,
     );
+  });
+
+  it("accepts the 500,000-character ceiling through limited run creation", async () => {
+    const runs = createInMemoryRunRepository();
+
+    await expect(
+      runs.createLimitedRun(
+        { ...submission, transcript: "x".repeat(500_000) },
+        new Date("2026-08-21T09:00:00.000Z"),
+        10,
+      ),
+    ).resolves.toMatchObject({ status: "queued" });
   });
 
   it("claims and completes a queued run", async () => {

@@ -33,7 +33,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -65,7 +66,7 @@ button,
   background: var(--sheet);
 }
 
-:is(a, button, input, textarea, summary):focus-visible {
+:is(a, button, input, select, textarea, summary):focus-visible {
   outline: 3px solid var(--cobalt);
   outline-offset: 3px;
 }
@@ -183,9 +184,132 @@ button,
   font-size: 0.88rem;
   line-height: 1.65;
   margin-top: 10px;
-  min-height: 330px;
+  min-height: 140px;
   padding: 18px;
   resize: vertical;
+  width: 100%;
+}
+
+.file-dropzone {
+  align-items: center;
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--cobalt);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr auto;
+  margin-top: 14px;
+  padding: 18px;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.file-dropzone[data-dragging="true"] {
+  background: var(--soft-cobalt);
+  border-color: var(--cobalt);
+  box-shadow: inset 0 0 0 1px var(--cobalt);
+  transform: translateY(-2px);
+}
+
+.dropzone-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropzone-copy strong {
+  font-size: 1.05rem;
+}
+
+.dropzone-copy small,
+.file-receipt small {
+  color: var(--graphite);
+}
+
+.file-picker {
+  align-items: center;
+  background: var(--sheet);
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  position: relative;
+}
+
+.file-picker input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.file-picker:has(input:focus-visible) {
+  outline: 3px solid var(--cobalt);
+  outline-offset: 3px;
+}
+
+.file-receipt {
+  align-items: center;
+  background: var(--ink);
+  color: var(--sheet);
+  display: grid;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  gap: 10px;
+  grid-template-columns: auto 1fr auto;
+  padding: 10px 14px;
+}
+
+.file-receipt > span {
+  background: var(--cobalt);
+  font-weight: 600;
+  padding: 3px 7px;
+  text-transform: uppercase;
+}
+
+.file-receipt small {
+  color: #cbd3df;
+}
+
+.example-row {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr minmax(220px, 280px);
+  margin-top: 18px;
+}
+
+.alternate-label {
+  align-items: center;
+  color: var(--graphite);
+  display: flex;
+  font-size: 0.78rem;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.alternate-label::after {
+  background: var(--line);
+  content: "";
+  height: 1px;
+  width: 100%;
+}
+
+.example-picker {
+  color: var(--graphite);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  gap: 5px;
+}
+
+.example-picker select {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  min-height: 42px;
+  padding: 0 34px 0 12px;
   width: 100%;
 }
 
@@ -208,6 +332,31 @@ button,
   color: #7d202b;
   margin: 20px 0 0;
   padding: 12px 14px;
+}
+
+@media (max-width: 560px) {
+  .file-dropzone,
+  .example-row {
+    grid-template-columns: 1fr;
+  }
+
+  .file-picker {
+    width: 100%;
+  }
+
+  .file-receipt {
+    grid-template-columns: auto 1fr;
+  }
+
+  .file-receipt small {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-dropzone {
+    transition: none;
+  }
 }
 
 .report-specimen {

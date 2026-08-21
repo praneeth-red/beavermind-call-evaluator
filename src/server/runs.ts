@@ -9,6 +9,7 @@ import type {
 } from "../domain/types";
 import { evaluationCandidateSchema } from "../domain/evaluation-schema";
 import type { Json, RunRow } from "./supabase";
+import { MAX_TRANSCRIPT_LENGTH } from "./submission";
 import { evaluatorTestModeEnabled } from "./test-mode";
 
 export const STALE_RUN_ERROR =
@@ -291,7 +292,7 @@ function validateCreateInput(input: CreateRunInput) {
   if (
     !["kickoff", "coaching"].includes(input.callType) ||
     input.transcript.trim().length === 0 ||
-    input.transcript.length > 65_000 ||
+    input.transcript.length > MAX_TRANSCRIPT_LENGTH ||
     !/^[a-f0-9]{64}$/.test(input.clientHash)
   ) {
     throw new Error("Invalid run submission");

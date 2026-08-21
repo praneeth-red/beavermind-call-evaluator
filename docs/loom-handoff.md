@@ -16,8 +16,9 @@ Show the public submission page and say:
 
 ### 2. Submit one strong fixture
 
+- Load any supplied example directly, upload a local `.txt` file, or paste the text.
+- Point out that the transcript area starts compact, remains vertically resizable, and has no low visible character cap.
 - Select the correct call type.
-- Paste one supplied synthetic transcript.
 - Submit and point out the immediate permanent `/runs/<uuid>` URL.
 - Refresh while the run is active to show that the URL persists and no second evaluation starts.
 - Explain that the row is created before model work and claimed atomically by one worker.
