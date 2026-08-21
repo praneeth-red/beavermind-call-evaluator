@@ -110,11 +110,13 @@ describe("Report", () => {
     expect(html).toContain("Fail");
     expect(html).toContain("At risk");
     expect(html).toContain("Inconsistent");
+    expect(html).toContain("<span>Mixed</span>");
+    expect(html).not.toContain("<wbr");
     expect(html).toContain("Strong");
     expect(html).toContain("Elite");
   });
 
-  it("links back to a fresh evaluation from the report header", () => {
+  it("puts a back link before the report header", () => {
     const html = renderToStaticMarkup(
       createElement(Report, {
         result: result(),
@@ -123,8 +125,10 @@ describe("Report", () => {
       }),
     );
 
-    expect(html).toContain('href="/"');
-    expect(html).toContain("Evaluate another call");
+    expect(html).toContain('<a class="page-back" href="/">← Back to evaluator</a>');
+    expect(html.indexOf('class="page-back"')).toBeLessThan(
+      html.indexOf('class="report-header"'),
+    );
   });
 
   it("orders unique evidence turns by transcript chronology", () => {

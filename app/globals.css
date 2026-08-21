@@ -15,6 +15,9 @@
   --soft-red: #f9e8e9;
   --font-body: var(--font-instrument-sans), system-ui, sans-serif;
   --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+  --border-strong: 3px solid var(--ink);
+  --shadow-card: 6px 6px 0 var(--ink);
+  --shadow-control: 2px 2px 0 var(--cobalt);
 }
 
 * {
@@ -57,15 +60,18 @@ a {
 
 button,
 .primary-action,
-.secondary-action {
+.secondary-action,
+.page-back {
   align-items: center;
-  border: 1px solid var(--ink);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-control);
   display: inline-flex;
   font-weight: 700;
   justify-content: center;
   min-height: 48px;
   padding: 0 22px;
   text-decoration: none;
+  transition: box-shadow 120ms ease, transform 120ms ease;
 }
 
 button,
@@ -75,8 +81,25 @@ button,
   cursor: pointer;
 }
 
-.secondary-action {
+.secondary-action,
+.page-back {
   background: var(--sheet);
+}
+
+button:not(:disabled, .transcript-drawer-backdrop):hover,
+.primary-action:hover,
+.secondary-action:hover,
+.page-back:hover {
+  box-shadow: 3px 3px 0 var(--cobalt);
+  transform: translate(-1px, -1px);
+}
+
+button:not(:disabled, .transcript-drawer-backdrop):active,
+.primary-action:active,
+.secondary-action:active,
+.page-back:active {
+  box-shadow: 1px 1px 0 var(--cobalt);
+  transform: translate(1px, 1px);
 }
 
 :is(a, button, input, select, textarea, summary):focus-visible {
@@ -136,8 +159,8 @@ button,
 
 .tool-card {
   background: var(--sheet);
-  border: 3px solid var(--ink);
-  box-shadow: 6px 6px 0 var(--ink);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-card);
   padding: clamp(18px, 3vw, 30px);
 }
 
@@ -452,12 +475,15 @@ button,
 
 .status-shell {
   align-items: flex-start;
+  background: var(--sheet);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin: 0 auto;
+  margin: 48px auto;
   max-width: 760px;
-  min-height: 100vh;
+  min-height: calc(100vh - 96px);
   padding: 48px 24px;
 }
 
@@ -515,11 +541,14 @@ button,
 
 .skeleton-status {
   align-items: flex-start;
-  border-bottom: 1px solid var(--line);
+  background: var(--sheet);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-card);
   display: flex;
   gap: 32px;
   justify-content: space-between;
-  padding-bottom: 22px;
+  margin-bottom: 28px;
+  padding: clamp(18px, 3vw, 26px);
 }
 
 .skeleton-status h1 {
@@ -722,12 +751,18 @@ button,
 .report-header {
   align-items: flex-start;
   background: var(--sheet);
-  border: 3px solid var(--ink);
-  box-shadow: 6px 6px 0 var(--ink);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-card);
   display: flex;
   gap: 32px;
   justify-content: space-between;
   padding: clamp(18px, 3vw, 26px);
+}
+
+.page-back {
+  margin-bottom: 18px;
+  min-height: 42px;
+  padding-inline: 14px;
 }
 
 .report-actions {
@@ -858,13 +893,16 @@ button,
   font-family: var(--font-body);
   font-size: 0.7rem;
   font-weight: 800;
-  gap: 4px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  grid-template-columns: repeat(5, minmax(72px, 1fr));
   list-style: none;
-  margin: 10px 0 0;
+  margin: 10px 0 0 50%;
+  max-width: calc(100vw - 96px);
   padding: 0;
   text-align: center;
   text-transform: uppercase;
+  transform: translateX(-50%);
+  width: 420px;
 }
 
 .score-gauge-legend li {
@@ -877,7 +915,7 @@ button,
 
 .score-gauge-legend li > span {
   display: block;
-  min-height: 2.3em;
+  white-space: nowrap;
 }
 
 .score-gauge-legend small {
@@ -891,6 +929,8 @@ button,
 
 .one-thing {
   background: var(--ink);
+  border: var(--border-strong);
+  box-shadow: 6px 6px 0 var(--cobalt);
   color: var(--sheet);
   margin: 28px 0;
   padding: clamp(22px, 4vw, 36px);
@@ -924,7 +964,8 @@ button,
 
 .paper-section {
   background: var(--sheet);
-  border: 1px solid var(--line);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-card);
   padding: clamp(22px, 4vw, 34px);
 }
 
@@ -949,7 +990,7 @@ button,
 }
 
 .risks-final {
-  border-top: 4px solid var(--retention-red);
+  border-top: 6px solid var(--retention-red);
   margin-top: 64px;
 }
 
@@ -967,7 +1008,8 @@ button,
 
 .risks-final .risk-list > li {
   background: var(--paper);
-  border-left: 3px solid var(--retention-red);
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--retention-red);
   padding: 18px;
 }
 
@@ -1006,7 +1048,11 @@ button,
 }
 
 .dimensions-section {
+  background: var(--sheet);
+  border: var(--border-strong);
+  box-shadow: var(--shadow-card);
   margin: 64px 0;
+  padding: clamp(22px, 4vw, 34px);
 }
 
 .section-heading {
@@ -1048,6 +1094,7 @@ button,
 .rail-bar {
   align-items: flex-end;
   background: #dfe4ec;
+  border: 2px solid var(--ink);
   display: flex;
   height: 72px;
   overflow: hidden;
@@ -1063,13 +1110,17 @@ button,
 }
 
 .dimension-list {
-  border-top: 1px solid var(--ink);
+  border: 2px solid var(--ink);
 }
 
 .dimension-list details {
   background: var(--sheet);
   border-bottom: 1px solid var(--line);
   scroll-margin-top: 20px;
+}
+
+.dimension-list details:last-child {
+  border-bottom: 0;
 }
 
 .dimension-list summary {
@@ -1155,7 +1206,8 @@ button,
 
 .dimension-actions > div {
   background: var(--paper);
-  border-left: 3px solid var(--amber);
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--amber);
   padding: 18px;
 }
 
@@ -1217,6 +1269,7 @@ button,
 .transcript-drawer-backdrop {
   background: rgb(26 26 46 / 48%);
   border: 0;
+  box-shadow: none;
   inset: 0;
   min-height: 0;
   opacity: 0;
@@ -1232,7 +1285,7 @@ button,
 
 .transcript-drawer {
   background: var(--sheet);
-  border-left: 3px solid var(--ink);
+  border-left: var(--border-strong);
   bottom: 0;
   box-shadow: -12px 0 30px rgb(26 26 46 / 18%);
   display: flex;
@@ -1456,6 +1509,21 @@ button,
 
   .score-gauge {
     width: 100%;
+  }
+
+  .score-gauge-legend {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-left: 0;
+    max-width: none;
+    transform: none;
+    width: 100%;
+  }
+
+  .report-header,
+  .paper-section,
+  .dimensions-section,
+  .skeleton-status {
+    box-shadow: 4px 4px 0 var(--ink);
   }
 
   .report-actions,

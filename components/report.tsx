@@ -68,7 +68,7 @@ function ScoreGauge({
       <ol className="score-gauge-legend" aria-label="Score bands">
         <li className="score-zone-fail"><span>Fail</span><small>0–59</small></li>
         <li className="score-zone-risk"><span>At risk</span><small>60–69</small></li>
-        <li className="score-zone-inconsistent" aria-label="Inconsistent, 70 to 79"><span>Incon<wbr />sistent</span><small>70–79</small></li>
+        <li className="score-zone-inconsistent" aria-label="Inconsistent, 70 to 79"><span>Mixed</span><small>70–79</small></li>
         <li className="score-zone-strong"><span>Strong</span><small>80–89</small></li>
         <li className="score-zone-elite"><span>Elite</span><small>90–100</small></li>
       </ol>
@@ -302,15 +302,13 @@ export function Report({
   return (
     <div className="report-workspace" data-drawer-open={selectedTurn !== null}>
       <main className="report-shell">
+        <Link className="page-back" href="/">← Back to evaluator</Link>
         <header className="report-header">
         <div>
           <p className="eyebrow">Call evaluation</p>
           <ScoreGauge score={result.normalizedScore} grade={result.grade} />
         </div>
         <div className="report-actions">
-          <Link className="secondary-action" href="/">
-            ← Evaluate another call
-          </Link>
           <a className="secondary-action" href={`/api/runs/${runId}/pdf`}>
             Download PDF
           </a>
