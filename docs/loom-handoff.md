@@ -2,9 +2,9 @@
 
 No Loom was recorded by the implementation workflow. This is a factual outline for Praneeth to record separately with webcam on.
 
-## Current recording blocker
+## Current live proof
 
-Do not record the completed-report walkthrough yet. As of 2026-08-21, the live application and database are healthy, but Vercel AI Gateway returns a generic 403 until the Vercel account has a valid payment card on file. All four synthetic fixtures were accepted and failed safely without exposing the provider response. After billing access is enabled, rerun all four fixtures, verify the two coaching traps, download the real production PDF, and check production logs before recording.
+The production model path is working. The supplied `kickoff-01.txt` fixture completed at a permanent public URL with 12 dimensions, durable refresh, no mobile overflow, and a matching 12-page PDF. DeepSeek V4 Flash 0731 runs at `xhigh` reasoning through the Fireworks provider on Vercel AI Gateway.
 
 ## Suggested walkthrough
 
@@ -62,7 +62,7 @@ Also mention:
 
 ### 7. Close with proof
 
-After the Gateway blocker is cleared and the checks are rerun, show the public repository, the production deployment, the passing local checks, all four completed synthetic fixture URLs, one persistent refresh, the mobile layout, the downloaded final PDF, and the clean production log scan.
+Show the public repository, the production deployment, the passing local checks, the completed production fixture URL, one persistent refresh, the mobile layout, the downloaded final PDF, and the clean production log scan.
 
 ## Recording checklist
 

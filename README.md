@@ -6,13 +6,13 @@ Live deployment: https://beavermind-call-evaluator.vercel.app
 
 ## Deployment status on 2026-08-21
 
-The application and its isolated Supabase database are deployed. Submission, durable status, safe terminal failure, refresh, mobile layout, and public-data boundaries have been verified with all four synthetic fixtures. Model-dependent completion is currently blocked because Vercel AI Gateway refuses requests until the Vercel account has a valid payment card on file. The application converts that provider failure into the fixed public failure message as designed. No completed production report or production PDF is claimed while that external billing requirement remains unresolved.
+The application, isolated Supabase database, and real model path are live. A supplied synthetic fixture completed in production at [this permanent report URL](https://beavermind-call-evaluator.vercel.app/runs/1fedcc10-8146-49d4-b6d6-a3bd529f7a58); its 12-dimension HTML report survived refresh and its matching 12-page PDF returned HTTP 200. The exact local fixture suite also verifies all four supplied transcripts, drag-and-drop, close-tab completion, mobile layout, scoring traps, and safe terminal failure.
 
 ## Architecture
 
 - Next.js 16 renders the submission form, status page, HTML report, and PDF route.
 - Supabase stores one `runs` row per submission. Row-level security is enabled with no browser policies; only server-side service-role calls can access rows.
-- Vercel AI Gateway calls `openai/gpt-5.6-luna` with Vercel OIDC. No OpenAI or AI Gateway API key is used.
+- Vercel AI Gateway calls `deepseek/deepseek-v4-flash-0731` at `xhigh` reasoning through Fireworks with Vercel OIDC. No provider or AI Gateway API key is used.
 - The browser receives only public run state. It never receives the transcript, client hash, provider response, raw error, or database credential.
 
 The lifecycle is deliberately small:
@@ -33,7 +33,7 @@ The application, not the model, calculates dimension caps, raw points, active ma
 - Coaching diagnostics and movement dimensions can be inactive. An inactive dimension contributes neither points nor maximum, with no undefined redistribution.
 - Dimension caps apply first. The lowest applicable total cap then applies.
 - Transcripts have no timestamps, so coach word share is used and labeled as a talk-time estimate.
-- Every evidence quote must be an exact substring of its declared parsed speaking turn.
+- Every stored evidence quote is an exact transcript segment from its declared speaking turn. Bounded punctuation or light wording differences are resolved back to the source segment; invented or partial generic matches are rejected.
 - Coaching live booking requires distinct link, action, and confirmation turns across both coach and client. Otherwise dimension 10 is capped at zero.
 
 ## Local setup
@@ -77,7 +77,7 @@ npm run build
 npm run test:e2e
 ```
 
-Unit and integration tests cover fixture integrity, scoring and evidence rules, run transitions, atomic submission limits, safe terminal failure, the Luna worker boundary, report markup, and real PDF bytes. Playwright starts a real local Next.js process, submits all four exact pinned transcripts, and covers permanent URLs, refresh, close-tab background completion, all 12 dimensions, both coaching traps, mobile overflow, and PDF download.
+Unit and integration tests cover fixture integrity, scoring and evidence rules, run transitions, atomic submission limits, safe terminal failure, the DeepSeek/Fireworks worker boundary, report markup, and real PDF bytes. Playwright starts a real local Next.js process, submits all four exact pinned transcripts, and covers permanent URLs, refresh, close-tab background completion, all 12 dimensions, both coaching traps, mobile overflow, and PDF download.
 
 `npm run test:e2e` sets `EVALUATOR_TEST_MODE=1`. Its deterministic adapter derives structured signals from observable numbered turns in the pinned fixtures, then sends the candidate through the real evidence, cap, label, arithmetic, storage, HTML, and PDF path. This proves the pipeline and validator. It does not prove live-model semantic accuracy. Runs use a per-suite file under the operating system temp directory, removed before and after the suite. Next.js startup and server runtime both throw if test mode is enabled in production. Test mode is never a deployment setting.
 
@@ -107,7 +107,7 @@ Unit and integration tests cover fixture integrity, scoring and evidence rules, 
 - The form has no low visible character cap. The server rejects input above 500,000 characters as an anonymous-service safety boundary.
 - Browser textarea line endings are normalized before validation. The largest fixture is 64,801 bytes and 64,795 browser characters.
 - One invalid model result receives one repair request; a second invalid result fails safely.
-- Queued or processing work older than five minutes becomes a terminal timeout failure.
+- Queued or processing work older than 12 minutes becomes a terminal timeout failure, allowing two max-reasoning attempts to finish.
 - Word share is only an estimate of talk time.
 - A run URL is durable and shareable but not access-controlled.
 
